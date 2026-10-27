@@ -12,7 +12,6 @@ FARPROC CapcomProc(WORD ordinal);
 
 #define LP2_FORWARDS(X)                            \
 	X(XNetInAddrToString, 62)                      \
-	X(XHVCreateEngine, 5008)                       \
 	X(XLivePBufferAllocate, 5016)                  \
 	X(XLivePBufferFree, 5017)                      \
 	X(XLivePBufferGetByte, 5018)                   \
@@ -42,7 +41,6 @@ FARPROC CapcomProc(WORD ordinal);
 	X(XLivePBufferGetByteArray, 5294)              \
 	X(XLivePBufferSetByteArray, 5295)              \
 	X(XStringVerify, 5303)                         \
-	X(XUserMuteListQuery, 5314)                    \
 	X(XUserReadProfileSettings, 5331)              \
 	X(XUserWriteProfileSettings, 5337)             \
 	X(XUserReadProfileSettingsByXuid, 5339)        \

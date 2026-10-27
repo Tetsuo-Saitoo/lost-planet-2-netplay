@@ -30,11 +30,21 @@ struct Config {
 	// [Overlay]
 	UINT overlayKey = VK_HOME;
 
+	// [Voice]
+	bool voice = true;
+	UINT pushToTalk = 0;       // virtual-key code held to talk; 0 = open microphone
+	int voiceVolume = 100;     // playback, percent (0..200)
+	bool voiceSteamMic = true;  // Steam records and compresses the microphone when Steam runs
+	std::vector<ULONGLONG> muted;  // XUIDs on the mute list (XUserMuteListQuery)
+
 	// [Debug]
 	bool log = true;
 	bool logPackets = false;
 	bool gameLog = true;  // copy the game's own network debug messages into lp2net.log
 	bool allowMultipleCopies = false;  // run several copies on one PC (testing)
+	std::string voiceFeedWav;  // play this WAV file into voice chat instead of the microphone (loops)
+	int voiceFeedCopy = 0;     // only copy N on this PC uses the feed (0 = every copy)
+	std::string voiceDumpWav;  // write what voice chat plays to this WAV file (copy N > 1 adds "-copyN")
 };
 
 Config& Cfg();

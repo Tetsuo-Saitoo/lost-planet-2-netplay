@@ -4,6 +4,7 @@
 #include "log.h"
 #include "net.h"
 #include "overlay.h"
+#include "xhv.h"
 #include "xnotify.h"
 
 #include <mutex>
@@ -79,6 +80,7 @@ extern "C" HRESULT WINAPI XLiveInitialize(XLIVE_INITIALIZE_INFO* pInfo) {
 extern "C" void WINAPI XLiveUninitialize() {
 	LOG("XLiveUninitialize");
 	OverlayShutdown();
+	VoiceShutdown();
 	NetShutdown();
 }
 

@@ -74,4 +74,12 @@ void SteamQueryLobby(uint64_t lobby);
 // reaches its menus (it ignores invites before that).
 void SteamLaunchJoin();
 
+// Voice (xhv.cpp): Steam records the microphone chosen in Steam's settings and compresses it (Opus). Any thread.
+void SteamVoiceRecord(bool on);
+// Compressed voice recorded since the last call; bytes written (0 = none). result = Steam's EVoiceResult.
+int SteamVoiceGet(void* buf, uint32_t cb, int* result);
+// 16-bit mono PCM at sampleRate (11025..48000); bytes written, -1 on error.
+int SteamVoiceDecompress(const void* data, uint32_t cb, int16_t* pcm, uint32_t cbPcm, uint32_t sampleRate);
+uint32_t SteamVoiceSampleRate();
+
 }  // namespace lp2net

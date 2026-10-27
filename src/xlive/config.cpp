@@ -2,6 +2,7 @@
 
 #include "util.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 
@@ -106,10 +107,24 @@ void LoadConfig() {
 
 	c.overlayKey = GetPrivateProfileIntW(L"Overlay", L"Hotkey", VK_HOME, g_ini.c_str());
 
+	c.voice = ReadBool(L"Voice", L"Enabled", true);
+	c.pushToTalk = GetPrivateProfileIntW(L"Voice", L"PushToTalk", 0, g_ini.c_str());
+	c.voiceVolume = std::clamp((int)GetPrivateProfileIntW(L"Voice", L"Volume", 100, g_ini.c_str()), 0, 200);
+	c.voiceSteamMic = ReadBool(L"Voice", L"SteamMicrophone", true);
+	c.muted.clear();
+	for (const auto& x : SplitList(ReadStr(L"Voice", L"Muted", ""))) {
+		if (ULONGLONG v = _strtoui64(x.c_str(), nullptr, 16)) {
+			c.muted.push_back(v);
+		}
+	}
+
 	c.log = ReadBool(L"Debug", L"Log", true);
 	c.logPackets = ReadBool(L"Debug", L"LogPackets", false);
 	c.gameLog = ReadBool(L"Debug", L"GameLog", true);
 	c.allowMultipleCopies = ReadBool(L"Debug", L"AllowMultipleCopies", false);
+	c.voiceFeedWav = ReadStr(L"Debug", L"VoiceFeedWav", "");
+	c.voiceFeedCopy = GetPrivateProfileIntW(L"Debug", L"VoiceFeedCopy", 0, g_ini.c_str());
+	c.voiceDumpWav = ReadStr(L"Debug", L"VoiceDumpWav", "");
 	SaveConfig();  // writes defaults and the generated XUID back so the file documents itself
 }
 
@@ -134,10 +149,24 @@ void SaveConfig() {
 	WriteStr(L"Steam", L"UseSteamName", c.steamName ? "1" : "0");
 	WriteStr(L"Steam", L"Relay", c.steamRelay ? "1" : "0");
 	WriteStr(L"Overlay", L"Hotkey", std::to_string(c.overlayKey));
+	std::string muted;
+	for (ULONGLONG x : c.muted) {
+		char buf[24];
+		snprintf(buf, sizeof(buf), "%s%016llX", muted.empty() ? "" : ",", x);
+		muted += buf;
+	}
+	WriteStr(L"Voice", L"Enabled", c.voice ? "1" : "0");
+	WriteStr(L"Voice", L"PushToTalk", std::to_string(c.pushToTalk));
+	WriteStr(L"Voice", L"Volume", std::to_string(c.voiceVolume));
+	WriteStr(L"Voice", L"SteamMicrophone", c.voiceSteamMic ? "1" : "0");
+	WriteStr(L"Voice", L"Muted", muted);
 	WriteStr(L"Debug", L"Log", c.log ? "1" : "0");
 	WriteStr(L"Debug", L"LogPackets", c.logPackets ? "1" : "0");
 	WriteStr(L"Debug", L"GameLog", c.gameLog ? "1" : "0");
 	WriteStr(L"Debug", L"AllowMultipleCopies", c.allowMultipleCopies ? "1" : "0");
+	WriteStr(L"Debug", L"VoiceFeedWav", c.voiceFeedWav);
+	WriteStr(L"Debug", L"VoiceFeedCopy", std::to_string(c.voiceFeedCopy));
+	WriteStr(L"Debug", L"VoiceDumpWav", c.voiceDumpWav);
 }
 
 }  // namespace lp2net

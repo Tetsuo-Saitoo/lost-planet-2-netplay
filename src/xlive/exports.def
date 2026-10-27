@@ -133,3 +133,7 @@ EXPORTS
 
 	; LIVE stats (xstats.cpp)
 	XUserReadStats                      @5281  NONAME
+
+	; Voice chat (xhv.cpp)
+	XHVCreateEngine                     @5008  NONAME
+	XUserMuteListQuery                  @5314  NONAME

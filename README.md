@@ -59,7 +59,7 @@ cd lost-planet-2-netplay
 tools\build.bat
 ```
 
-Output: `build\xlive.dll` (x86) and `build\nettest.exe`.
+Output: `build\xlive.dll` (x86), `build\nettest.exe` and `build\voicetest.exe`.
 
 ## Developer install
 
@@ -79,6 +79,13 @@ nettest host        (in one terminal)
 nettest client      (in another; prints PASS or FAIL)
 ```
 
+## Voice test
+
+Two processes talk through the voice engine without the game: put an `lp2net.ini` next to `voicetest.exe` with
+`[Network] Peers=127.0.0.1:3075,127.0.0.1:3175`, `[Steam] Enabled=0` and `[Debug] VoiceFeedWav=<a speech WAV>`,
+`VoiceDumpWav=<out.wav>`, then run `voicetest a` and `voicetest b` at the same time (each prints PASS or FAIL;
+the dumps hold what each side played).
+
 ## Layout
 
 - `src/xlive/` the DLL: `net.*` (peers, virtual addresses, packet header, core socket), `xsocket.cpp`, `xnet.cpp`,
@@ -86,10 +93,10 @@ nettest client      (in another; prints PASS or FAIL)
   System Link prompt), `xui.cpp` (Guide screens -> Steam overlay), `xstorage.cpp` / `xstats.cpp` (LIVE storage
   and stats, online mode), `matchmaking.cpp` + `lp2_queries.inc` (session search with the game's own queries),
   `steam.cpp` (Steam client: name, lobbies, invites, relay, rich presence), `instances.cpp` (input gating,
-  multi-copy), `upnp.cpp`, `gamelog.cpp`,
+  multi-copy), `upnp.cpp`, `gamelog.cpp`, `xhv.cpp` (voice chat: the game's XHV engine, mute list),
   `exports.def` + `forwards.cpp` (ordinal table; the rest goes to Capcom's stub)
 - `tools/` build, dev install, game launcher, Ghidra headless scripts
-- `tests/` transport test
+- `tests/` transport test, voice test
 - `third_party/imgui` Dear ImGui 1.91.9 (MIT), as a git submodule
 - `re-work/` (git-ignored) backups, analysis copies, Ghidra projects, decompiler output. Never commit or share.
 

@@ -60,6 +60,7 @@ enum class PacketType : uint8_t {
 	QosReply = 5,
 	SessionQuery = 6,  // core: ask hosts to describe their session
 	SessionInfo = 7,   // core: session beacon / answer
+	Voice = 8,         // core: voice frames and talker announcements (xhv.cpp); older builds ignore it
 };
 
 #pragma pack(push, 1)
@@ -147,6 +148,14 @@ void JoinSessionFromSteam(const XSESSION_INFO& info, DWORD flags, uint64_t hostS
 // Steam lobby data describing a hosted session; joinNow = the player picked it from Steam (invite / Join Game).
 struct LobbyEntry;  // steam.h
 void SessionFromSteamLobby(const LobbyEntry& lobby, bool joinNow);
+
+// ---- voice (xhv.cpp) -------------------------------------------------------------------------------------------
+// Voice packets travel on the core socket, or through the Steam relay like any core packet. The handler runs on the
+// net worker thread without the net lock held.
+using VoiceHandler = void (*)(uint32_t fromPeer, const BYTE* body, int cb);
+void SetVoiceHandler(VoiceHandler fn);
+void SendVoice(uint32_t peerId, const void* body, size_t cb);
+std::vector<uint32_t> VoicePeers();  // peers heard from in the last 15 s
 
 void AddManualPeer(const std::string& hostPort);
 void RemoveManualPeer(const std::string& hostPort);

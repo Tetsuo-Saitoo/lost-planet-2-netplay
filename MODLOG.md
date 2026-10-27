@@ -207,6 +207,79 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
 - tools\run_two.ps1 starts both and lays them out; tools\focus_lp2.ps1 -Index N gives one the keyboard (Alt tap +
   SetForegroundWindow; clicking a game window does not reliably activate it).
 
+## Voice chat (phase 2) — xhv.cpp
+### How LP2 uses XHV (analysis copy, DX9 addresses)
+- Class NetworkXboxVoice, a 0x100-byte object at global 0x018CE2F0 (engine pointer at +8). init 0x444D70 calls
+  XHVCreateEngine with dwMaxRemoteTalkers = min(n, 30) (16 seen in game), dwMaxLocalTalkers 1, local modes {1, 2},
+  remote modes {2}, no custom VAD, no raw-data callback, hwndFocus = game window. Mode 1 = XHV_LOOPBACK_MODE,
+  2 = XHV_VOICECHAT_MODE (the game switches between them in setLoopbackMode 0x4453B0).
+- IXHVEngine slots used (byte offsets): 0x0C/0x10 Start/StopLocalProcessingModes, 0x14 StartRemoteProcessingModes,
+  0x20/0x24 Register/UnregisterLocalTalker, 0x28 RegisterRemoteTalker(xuid, 0, 0, 0), 0x2C UnregisterRemoteTalker,
+  0x30 GetRemoteTalkers (capacity 30), 0x34 IsHeadsetPresent (sent to the others as "hasVoice",
+  checkVoiceHeadsetStatus 0x414700), 0x38 IsLocalTalking, 0x3C IsRemoteTalking (talking indicators, 0x414A20),
+  0x40 GetDataReadyFlags, 0x44 GetLocalChatData, 0x48 SetPlaybackPriority (0xFFFFFFFF = muted), 0x4C
+  SubmitIncomingChatData. Destructor path calls Release (0x04).
+- The game carries voice itself (GFWL's model): move() 0x444F50 runs each frame, and when GetDataReadyFlags & 1 it
+  pulls GetLocalChatData (buffer 100 bytes) into a 100-byte queue at +0x18 (fill at +0x7C). takeVoiceData 0x445740
+  flushes the queue when it holds > 70 bytes or 0.2 s passed (float 0x016E71CC); 0x4147F0 sends it to each member
+  that isMutedRemoteUser (0x404DE0: XUserMuteListQuery, XUserAreUsersFriends) does not block and whose per-member
+  voice flag (+0x13D68) is set; the receiver (0x414920) calls putVoiceData 0x445800 -> SubmitIncomingChatData.
+  If the queue would overflow the game drops the oldest bytes ("Drop not send VoiceData").
+- Startup in game: XHVCreateEngine, RegisterLocalTalker(0) and StartLocalProcessingModes(0, [2]) ~4 s after
+  launch. Mute-list changes: XN_SYS_MUTELISTCHANGED (0x11) -> setNotifySysMutelistchanged 0x4049C0 -> updateMutelists.
+
+### Design: audio on our transport, control stays with the game
+- The game's channel was sized for the Xbox 360 codec (10-byte packets, ~4 kbit/s). Steam's Opus voice is several
+  times that, and the byte-level drops would break any variable-size framing. So GetDataReadyFlags always returns 0
+  (the game sends nothing) and voice travels as PacketType::Voice (8) on the core socket, or the Steam relay like
+  other core packets (net.cpp: SendVoice, VoicePeers, a handler called without the net lock). Older builds ignore
+  type 8.
+- The game still decides everything visible: Register/UnregisterRemoteTalker = who we talk with,
+  SetPlaybackPriority(never) and XUserMuteListQuery = mute (both directions: we neither play nor send), and it reads
+  IsLocalTalking / IsRemoteTalking / IsHeadsetPresent for its indicators.
+- Body: VoiceMsg {kind, codec, flags, seq, cbData, xuid (as the game sees it), offline xuid} + data. Every 2 s
+  (and right after RegisterRemoteTalker) each copy announces its XUIDs and name to peers heard in the last 15 s; our
+  audio goes only to peers whose XUID the game registered and has not muted. Audio from anyone else is dropped.
+- Audio inside: 16 kHz mono 16-bit. Microphone: Steam (StartVoiceRecording/GetVoice, ISteamUser slots 7-12 added
+  to steam.cpp, codec 1 = Steam's own compressed format, decoded with DecompressVoice at 16 kHz) when Steam runs and
+  [Voice] SteamMicrophone=1; else the Windows default recording device (waveIn) as IMA ADPCM (codec 2, 40 ms
+  packets of 324 bytes, ~9 KB/s per listener, each packet carries its own decoder state). PCM sources send while an
+  RMS gate (200/32768, 400 ms hangover) and push-to-talk allow. The microphone opens only while the game has a
+  remote talker registered (or loopback / the overlay's microphone test), not at the menus.
+- Playback: per-talker jitter buffer (starts at 100 ms, capped at 0.5 s), mixed with [Voice] Volume into waveOut
+  (5 x 20 ms buffers). A talker "talks" for 250 ms after audible audio was played. Loopback mode and the microphone
+  test play our own voice back.
+- Settings: [Voice] Enabled, PushToTalk (virtual-key code, 0 = open mic), Volume (0-200 %), SteamMicrophone, Muted
+  (XUIDs). Overlay tab "Voice": the same, a microphone test, the talkers with talking state and a mute box (posts
+  XN_SYS_MUTELISTCHANGED so the game re-reads the list), counters.
+- Debug: [Debug] VoiceFeedWav (any PCM WAV, loops, replaces the microphone), VoiceFeedCopy (0 = every copy, N = only
+  copy N), VoiceDumpWav (what is played, after volume; copy N > 1 writes "-copyN"). lp2net.log gets counters every
+  10 s: blocks captured, packets/bytes sent and received, decoded, decode errors, lost (sequence gaps), underruns
+  (ran dry inside a talk spurt; the first packet after a pause carries a spurt-start flag), played blocks, drops.
+
+### Verified
+- Build: /W4 clean, still exactly Capcom's 163 ordinals; 5008 and 5314 are ours now (43 forwards left). New import:
+  WINMM.dll (part of Windows).
+- tests/voicetest.cpp (two processes, no game, Steam off, both feeding a 9.6 s TTS phrase + 1 kHz marker WAV, ini
+  next to the exe with Peers=127.0.0.1:3075,127.0.0.1:3175): PASS both ways. In 20 s each side sent 338-342 packets
+  (~118 KB) and the other received them all, 0 lost, 0 decode errors, 3 underruns; each side's IsRemoteTalking
+  followed the other's speech (19 talk spurts in 25 s). Both dumps hold the feed: the marker tone appears exactly one
+  loop (9.6 s) apart and the 20 ms loudness envelope matches the feed with correlation 0.97-0.997, no silent frames
+  where the feed is loud.
+- In game (two DX9 copies, test bed, WAV feed set): the game creates the engine at startup (maxRemote 16, modes as
+  above), registers local talker 0 in voice chat mode, the voice thread starts, Steam's GetVoiceOptimalSampleRate
+  returns 24000 (the new ISteamUser slots line up), and on quit the game unregisters the talker, releases the
+  engine and the thread stops before XLiveUninitialize. Ran ~6 min at the menus; no errors or failures in the logs.
+- NOT verified in game yet: a lobby with talkers (remote talker registration, the game's talking icons, mute from the
+  game's own menus), Steam microphone capture and DecompressVoice with real Steam data, push-to-talk, the overlay
+  Voice tab on screen, two real PCs. The second copy did not quit on WM_CLOSE (it showed something, probably the
+  quit prompt, that needs input) and was ended by PID.
+
+### Gotchas
+- GetTickCount64 stamps from several threads: `now - t` can underflow when another thread stamped t after the
+  caller read `now` (this erased a peer's entry the moment it was added). xhv.cpp uses Age(t, now).
+- Steam's GetVoice data is only decodable as a whole call's output; never split it across packets.
+
 ## Gotchas
 1. SteamStub: run the exe with SteamAppId/SteamGameId=45750 set (as Steam does); without it, it exits code 53
    after ~16 s. Code is decrypted ~1.2 s after start (used once to make analysis-only copies; never shipped).

@@ -37,7 +37,17 @@ Over the internet (the game's own Online menu):
   invite. Friends can also right-click the host in the Steam friends list > Join Game.
 
 The Home key (or holding Back on a controller) opens the LP2 Netplay overlay: games found, Steam friends playing,
-Join by IP, settings. Esc or B closes it.
+Join by IP, voice, settings. Esc or B closes it.
+
+Voice chat (new, please test)
+-----------------------------
+- Uses the microphone chosen in Steam (Steam > Settings > Voice), or Windows' default microphone without Steam.
+- It is on by default with an open microphone: just talk once you are in a lobby or game together.
+- Overlay (Home) > Voice: turn it off, pick a push-to-talk key, change the volume, mute a player, and
+  "Microphone test" to hear yourself.
+- Please check: you hear each other in the lobby and in a mission, the game shows who is talking, muting a player
+  in the overlay silences them (for both of you), and the sound has no long delay or crackling.
+- If something is off, send lp2net.log from both PCs (lines starting with "voice:" have the counters).
 
 If something goes wrong
 -----------------------

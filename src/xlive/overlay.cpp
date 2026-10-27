@@ -7,6 +7,7 @@
 #include "log.h"
 #include "net.h"
 #include "steam.h"
+#include "xhv.h"
 #include "xnotify.h"
 
 #include <d3d11.h>
@@ -328,6 +329,88 @@ void DrawJoinTab() {
 	}
 }
 
+struct PttKey {
+	UINT vk;
+	const char* name;
+};
+const PttKey kPttKeys[] = {{0, "Off (open microphone)"}, {VK_CAPITAL, "Caps Lock"}, {'V', "V"}, {'T', "T"},
+                           {'B', "B"}, {VK_XBUTTON1, "Mouse button 4"}, {VK_XBUTTON2, "Mouse button 5"}};
+
+void DrawVoiceTab() {
+	Config& c = Cfg();
+	VoiceView v = VoiceStatus();
+	bool changed = ImGui::Checkbox("Voice chat", &c.voice);
+	ImGui::SameLine();
+	ImGui::TextDisabled(v.engine ? "" : "(the game has not started its voice engine yet)");
+	char other[32];
+	snprintf(other, sizeof(other), "Key code %u", c.pushToTalk);
+	const char* current = other;
+	for (const auto& k : kPttKeys) {
+		if (k.vk == c.pushToTalk) {
+			current = k.name;
+		}
+	}
+	ImGui::SetNextItemWidth(220 * g_uiScale);
+	if (ImGui::BeginCombo("Push to talk", current)) {
+		for (const auto& k : kPttKeys) {
+			if (ImGui::Selectable(k.name, k.vk == c.pushToTalk)) {
+				c.pushToTalk = k.vk;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::SetNextItemWidth(220 * g_uiScale);
+	changed |= ImGui::SliderInt("Volume", &c.voiceVolume, 0, 200, "%d%%");
+	changed |= ImGui::Checkbox("Use the microphone set in Steam (when Steam runs)", &c.voiceSteamMic);
+	if (changed) {
+		SaveConfig();
+	}
+	bool test = v.micTest;
+	if (ImGui::Checkbox("Microphone test (hear yourself)", &test)) {
+		VoiceSetMicTest(test);
+	}
+	ImGui::Text("Microphone: %s", v.active ? v.source.c_str() : "closed (opens in a game with other players)");
+	if (v.talking) {
+		ImGui::SameLine();
+		ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1), "talking");
+	}
+	ImGui::Separator();
+	if (ImGui::BeginTable("talkers", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH)) {
+		ImGui::TableSetupColumn("Player");
+		ImGui::TableSetupColumn("Voice");
+		ImGui::TableSetupColumn("Mute", ImGuiTableColumnFlags_WidthFixed, 60 * g_uiScale);
+		ImGui::TableHeadersRow();
+		int i = 0;
+		for (const auto& t : v.talkers) {
+			ImGui::PushID(i++);
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(t.name.c_str());
+			ImGui::TableNextColumn();
+			if (t.talking) {
+				ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1), "talking");
+			}
+			else {
+				ImGui::TextDisabled("%s", t.gameMuted && !t.muted ? "muted by the game"
+				                          : t.reachable          ? "quiet"
+				                                                 : "no voice yet");
+			}
+			ImGui::TableNextColumn();
+			bool muted = t.muted;
+			if (ImGui::Checkbox("##mute", &muted)) {
+				VoiceSetMuted(t.xuid, muted);
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndTable();
+	}
+	if (v.talkers.empty()) {
+		ImGui::TextDisabled("Players you can talk to appear here once you are in a game or lobby together.");
+	}
+	ImGui::TextDisabled("%s", v.counters.c_str());
+}
+
 void DrawSettingsTab() {
 	Config& c = Cfg();
 	if (!g_nameBuf[0]) {
@@ -387,6 +470,10 @@ void DrawWindow() {
 			}
 			if (ImGui::BeginTabItem("Join by IP")) {
 				DrawJoinTab();
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("Voice")) {
+				DrawVoiceTab();
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Settings")) {

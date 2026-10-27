@@ -44,11 +44,12 @@ add_library(xlive SHARED
 	src/xlive/xstats.cpp
 	src/xlive/steam.cpp
 	src/xlive/matchmaking.cpp
+	src/xlive/xhv.cpp
 	src/xlive/exports.def)
 target_compile_definitions(xlive PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _WINSOCK_DEPRECATED_NO_WARNINGS
 	_CRT_SECURE_NO_WARNINGS)
 target_compile_options(xlive PRIVATE /W4 /wd4100 /utf-8)
-target_link_libraries(xlive PRIVATE imgui ws2_32 iphlpapi bcrypt d3d9 d3d11 ole32 oleaut32)
+target_link_libraries(xlive PRIVATE imgui ws2_32 iphlpapi bcrypt d3d9 d3d11 ole32 oleaut32 winmm)
 set_target_properties(xlive PROPERTIES OUTPUT_NAME xlive)
 
 # Two-process System Link transport test: run `nettest host`, then `nettest client` (prints PASS/FAIL).
@@ -56,3 +57,9 @@ add_executable(nettest tests/nettest.cpp)
 target_compile_definitions(nettest PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 target_link_libraries(nettest PRIVATE ws2_32)
 add_dependencies(nettest xlive)
+
+# Two-process voice round trip (WAV feed in, WAV dump out): run `voicetest a` and `voicetest b` together.
+add_executable(voicetest tests/voicetest.cpp)
+target_compile_definitions(voicetest PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
+target_link_libraries(voicetest PRIVATE ws2_32)
+add_dependencies(voicetest xlive)

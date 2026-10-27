@@ -103,6 +103,7 @@ SOCKET g_inject = INVALID_SOCKET;
 uint16_t g_injectPort = 0;
 ULONGLONG g_lobbyStamp = 0, g_lastFriendScan = 0;
 constexpr ULONGLONG kDirectFresh = 20000;  // a peer heard over UDP this recently is reached directly
+std::atomic<VoiceHandler> g_voiceHandler{nullptr};
 
 ULONGLONG KidKey(const XNKID* k) {
 	ULONGLONG v;
@@ -388,6 +389,14 @@ void FinishQosTarget(QosJob& job, size_t i, bool contacted, bool disabled, const
 
 // Core packet from a peer, over UDP (`from` = their real address) or through the Steam relay (relaySteamId set).
 void HandleCore(const sockaddr_in& from, const PacketHeader& h, const BYTE* body, int cb, uint64_t relaySteamId = 0) {
+	if (h.type == PacketType::Voice) {
+		// xhv.cpp has its own lock and calls back into SendVoice: hand voice on without ours
+		VoiceHandler fn = g_voiceHandler;
+		if (fn && h.instanceId != g_me.instanceId) {
+			fn(h.instanceId, body, cb);
+		}
+		return;
+	}
 	std::lock_guard lock(g_mutex);
 	if (h.instanceId == g_me.instanceId) {
 		return;  // our own broadcast
@@ -1359,6 +1368,30 @@ void RefreshSessions() {
 		}
 	}
 	SteamRequestLobbies();
+}
+
+void SetVoiceHandler(VoiceHandler fn) {
+	g_voiceHandler = fn;
+}
+
+void SendVoice(uint32_t peerId, const void* body, size_t cb) {
+	std::lock_guard lock(g_mutex);
+	auto it = g_peers.find(peerId);
+	if (it != g_peers.end()) {
+		SendCorePeer(it->second, PacketType::Voice, body, cb);
+	}
+}
+
+std::vector<uint32_t> VoicePeers() {
+	std::lock_guard lock(g_mutex);
+	std::vector<uint32_t> out;
+	ULONGLONG now = GetTickCount64();
+	for (const auto& [id, p] : g_peers) {
+		if (p.lastHeard && now - p.lastHeard < 15000) {
+			out.push_back(id);
+		}
+	}
+	return out;
 }
 
 void AddManualPeer(const std::string& hostPort) {

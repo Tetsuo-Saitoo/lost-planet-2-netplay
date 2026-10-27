@@ -54,6 +54,18 @@ public:
 	virtual HSteamUser GetHSteamUser() = 0;  // 0
 	virtual bool BLoggedOn() = 0;            // 1
 	virtual CSteamID GetSteamID() = 0;       // 2
+	SLOT(3);
+	SLOT(4);
+	SLOT(5);
+	SLOT(6);
+	virtual void StartVoiceRecording() = 0;                                                  // 7
+	virtual void StopVoiceRecording() = 0;                                                   // 8
+	virtual int GetAvailableVoice(uint32_t* cbCompressed, uint32_t* unused, uint32_t unusedRate) = 0;  // 9
+	virtual int GetVoice(bool wantCompressed, void* dest, uint32_t cbDest, uint32_t* written, bool wantRaw,
+	                     void* rawDest, uint32_t cbRawDest, uint32_t* rawWritten, uint32_t rawRate) = 0;  // 10
+	virtual int DecompressVoice(const void* compressed, uint32_t cb, void* dest, uint32_t cbDest, uint32_t* written,
+	                            uint32_t sampleRate) = 0;                                    // 11
+	virtual uint32_t GetVoiceOptimalSampleRate() = 0;                                        // 12
 };
 
 struct FriendGameInfo_t {
@@ -736,6 +748,38 @@ void SteamJoinLobbyById(uint64_t lobby) {
 
 void SteamQueryLobby(uint64_t lobby) {
 	AskLobby(lobby, false);
+}
+
+void SteamVoiceRecord(bool on) {
+	std::lock_guard lock(g_mutex);
+	if (g_ready) {
+		on ? g_user->StartVoiceRecording() : g_user->StopVoiceRecording();
+	}
+}
+
+int SteamVoiceGet(void* buf, uint32_t cb, int* result) {
+	std::lock_guard lock(g_mutex);
+	uint32_t avail = 0, written = 0;
+	*result = g_ready ? g_user->GetAvailableVoice(&avail, nullptr, 0) : 1;  // 1 = k_EVoiceResultNotInitialized
+	if (*result != 0 || !avail) {
+		return 0;
+	}
+	*result = g_user->GetVoice(true, buf, cb, &written, false, nullptr, 0, nullptr, 0);
+	return *result == 0 ? (int)written : 0;
+}
+
+int SteamVoiceDecompress(const void* data, uint32_t cb, int16_t* pcm, uint32_t cbPcm, uint32_t sampleRate) {
+	std::lock_guard lock(g_mutex);
+	uint32_t written = 0;
+	if (!g_ready || g_user->DecompressVoice(data, cb, pcm, cbPcm, &written, sampleRate) != 0) {
+		return -1;
+	}
+	return (int)written;
+}
+
+uint32_t SteamVoiceSampleRate() {
+	std::lock_guard lock(g_mutex);
+	return g_ready ? g_user->GetVoiceOptimalSampleRate() : 0;
 }
 
 void SteamLaunchJoin() {
