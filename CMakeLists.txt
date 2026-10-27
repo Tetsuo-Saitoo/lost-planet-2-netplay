@@ -40,6 +40,7 @@ add_library(xlive SHARED
 	src/xlive/overlay.cpp
 	src/xlive/forwards.cpp
 	src/xlive/gamelog.cpp
+	src/xlive/watchdog.cpp
 	src/xlive/saves.cpp
 	src/xlive/instances.cpp
 	src/xlive/presence.cpp

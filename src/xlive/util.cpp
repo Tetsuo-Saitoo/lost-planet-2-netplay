@@ -4,6 +4,7 @@
 #include <ws2tcpip.h>
 
 #include <cstdio>
+#include <cstring>
 
 namespace lp2net {
 
@@ -67,6 +68,20 @@ DWORD CompleteOverlapped(XOVERLAPPED* ov, DWORD error, DWORD result) {
 		ov->pCompletionRoutine(error, result, ov);
 	}
 	return ERROR_IO_PENDING;
+}
+
+bool FindSection(const char* name, BYTE** start, size_t* size) {
+	auto* base = (BYTE*)GetModuleHandleW(nullptr);
+	auto* nt = (IMAGE_NT_HEADERS*)(base + ((IMAGE_DOS_HEADER*)base)->e_lfanew);
+	auto* sec = IMAGE_FIRST_SECTION(nt);
+	for (WORD i = 0; i < nt->FileHeader.NumberOfSections; ++i, ++sec) {
+		if (strncmp((const char*)sec->Name, name, 8) == 0) {
+			*start = base + sec->VirtualAddress;
+			*size = sec->Misc.VirtualSize;
+			return true;
+		}
+	}
+	return false;
 }
 
 }  // namespace lp2net

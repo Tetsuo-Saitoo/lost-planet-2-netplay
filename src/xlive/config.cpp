@@ -100,6 +100,7 @@ void LoadConfig() {
 	c.peers = SplitList(ReadStr(L"Network", L"Peers", ""));
 	c.lobbyServer = ReadStr(L"Network", L"LobbyServer", "");
 	c.onlineMode = ReadBool(L"Network", L"OnlineMode", true);
+	c.freezeGuard = ReadBool(L"Network", L"FreezeGuard", true);
 
 	c.steam = ReadBool(L"Steam", L"Enabled", true);
 	c.steamName = ReadBool(L"Steam", L"UseSteamName", true);
@@ -146,6 +147,7 @@ void SaveConfig() {
 	WriteStr(L"Network", L"Peers", peers);
 	WriteStr(L"Network", L"LobbyServer", c.lobbyServer);
 	WriteStr(L"Network", L"OnlineMode", c.onlineMode ? "1" : "0");
+	WriteStr(L"Network", L"FreezeGuard", c.freezeGuard ? "1" : "0");
 	WriteStr(L"Steam", L"Enabled", c.steam ? "1" : "0");
 	WriteStr(L"Steam", L"UseSteamName", c.steamName ? "1" : "0");
 	WriteStr(L"Steam", L"Relay", c.steamRelay ? "1" : "0");

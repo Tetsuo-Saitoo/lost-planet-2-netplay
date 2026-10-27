@@ -419,6 +419,41 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   content: nothing to match up in lobbies.
 - Still forwarded to Capcom's stub and called: XHVCreateEngine and XUserMuteListQuery (phase 2), protected data /
   profile settings (local, fine), the content enumerator (above). Stats enumerators (5284/5286) are phase 4.
+- FOUND (static, analysis copy, DX9 addresses), a candidate cause of the "player leaves the match by itself after
+  a few minutes" drops: the game's own frozen-game watchdog (not confirmed at runtime, see the test below). A real
+  two-PC System Link battle (voice test build) lost the joined player 7 min 49 s after XSessionStart, with the same
+  signature as the two-copy drops (all connections close-leave at once, XSessionDelete, no network error, no log
+  line). The user says it ends after a set time and being idle makes no difference.
+  - sPlanetNetwork (instance pointer 0x018420A4, vtable 0x01369D60) move = vtable slot 6 = 0x84F890. While
+    [game+0x14598] bit 0 is set, [game+0x14590] bit 0x100000 is clear, [net+0xA1F8] != -1 (in a session) and
+    [net+0xA1E8] == 0 (not leaving), it compares the game object's frame counter [game+0x14800] (game =
+    *0x018C080C) with the value it saw last ([net+0x11354C]). Unchanged -> [net+0x113550]++, and at 0x708 (1800)
+    it calls vtable slot 30 (0x84EAE0) with 0: [net+0xA1E8] = 1, leave state [net+0x113544] = 0, so
+    sPlanetNetwork::leaveProc (0x84A490) runs from the next move and leaves the session. Changed -> the counter
+    resets.
+  - The frame counter goes up by one in the game object's move (vtable 0x01368C18 slot 6 = 0x8452D0,
+    unconditional INC at 0x84530C); FUN_00846930 resets it to 0.
+  - So the watchdog fires when the network side keeps ticking while the game object's move does not run for 1800
+    network ticks.
+- watchdog.cpp (both exes, found by code bytes): logs the check's count (once a minute in a session: game frames
+  and the highest count seen; a line from 600 up with window/overlay state; one when the game starts leaving, with
+  the count), and with [Network] FreezeGuard=1 (default) raises the 0x708 limit so the check never ends a match.
+  It also hooks the entry of both leave functions and logs the caller: "session leave: the session's leave(0)
+  called from <address>", marked "(the freeze check ...)" when the check is the caller (return address 0x84F8E8).
+- TESTED (two copies, System Link Team Elimination, 20-minute limit, both idle): no drop; the match ran the full 20
+  minutes and ended with TerminateSession / XSessionEnd. Both copies ran ~6500-7000 game frames a minute; the
+  count never went above 10 (the limit is 1800). Not raised by: our overlay open 30 s (the game read XN_SYS_UI=1),
+  the window minimized 35 s, the window thread blocked 25 s (title bar held; the window then stopped responding,
+  the game and network still finished the match). So in normal play the check is nowhere near firing, and none of
+  the suspected triggers reach it.
+- The 0x84EAE0 leave is not the check's alone: it is the session's general leave (vtable slot 30). Seen callers
+  (DX9): the PDA's Quit Game 0xF205D2 (then a no-op second call from 0xF205F9), the lobby's Leave 0xE852E4, and the
+  host reacting to the last other player leaving a battle 0x89B42E (the host then deletes the session too).
+  leave(reason) 0x84A420 has 21 more callers. The next real drop's log names its caller.
+- The real two-PC drop (7 min 49 s) was on the voice build from before the 0.2.0 merge, which was based on the
+  first commit: it lacked 73c9cda (two PCs that met through Steam talked over the Steam relay only, and "the game
+  dropped the other player" after 5.5 min on the relay). 0.2.0 tries UDP first. The two-copy drops (UDP on one PC)
+  stay unexplained; the ranked one was after 73c9cda.
 
 ## Linux and Steam Deck (phase 7; not tried on real hardware yet)
 - LP2 has no Linux build: Steam runs it through Proton, which loads the game folder's xlive.dll as a native DLL
