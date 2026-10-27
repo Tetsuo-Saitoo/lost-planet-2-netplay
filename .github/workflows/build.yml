@@ -1,0 +1,89 @@
+# Builds xlive.dll and LP2NetSetup.exe (MSVC, x86) on every push and pull request and keeps the player package as
+# an artifact. A v* tag also makes a draft GitHub release with the package; publishing it stays a manual step.
+# Third-party actions are pinned to full commit SHAs (the tag is in the comment).
+name: build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Build (MSVC x86, CMake + Ninja)
+        shell: cmd
+        run: tools\build.bat
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: tools\make_package.ps1
+
+      - name: Check the tag matches project(VERSION)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if ($env:TAG -notmatch "^v$([regex]::Escape($env:VERSION))(-.+)?$") {
+            throw "Tag $env:TAG does not match the version in CMakeLists.txt ($env:VERSION)"
+          }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: LP2Netplay-${{ steps.package.outputs.version }}
+          path: |
+            dist/LP2Netplay-*.zip
+            dist/LP2Netplay-*/LP2NetSetup.exe
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: LP2Netplay-${{ needs.build.outputs.version }}
+          path: dist
+
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          zip="dist/LP2Netplay-$VERSION.zip"
+          exe="dist/LP2Netplay-$VERSION/LP2NetSetup.exe"
+          cat > notes.md <<EOF
+          **Players:** download **LP2NetSetup.exe**, quit Lost Planet 2 and double-click it, then click Install.
+          Windows may say "Windows protected your PC" because the file is not signed: click *More info* > *Run anyway*.
+          The zip has the same installer, HOW TO TEST.txt and a script installer (\`manual\`) in case the exe is blocked.
+
+          Built by GitHub Actions from $GITHUB_SHA.
+
+          | File | SHA-256 |
+          |---|---|
+          | LP2NetSetup.exe | \`$(sha256sum "$exe" | cut -d' ' -f1)\` |
+          | LP2Netplay-$VERSION.zip | \`$(sha256sum "$zip" | cut -d' ' -f1)\` |
+          EOF
+          prerelease=()
+          case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft "${prerelease[@]}" \
+            --title "LP2 Netplay ${TAG#v}" --notes-file notes.md "$exe" "$zip"

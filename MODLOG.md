@@ -200,6 +200,55 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   checks firewall), Install / Uninstall / "Allow through firewall" .bat files, HOW TO TEST.txt.
 - Tested on this PC: uninstall restores Capcom's exact file; install keeps it as xlive_capcom.dll.
 
+## Installer, CI and releases (phase 3)
+- One version number: `project(lp2net VERSION 0.2.0)` -> `build\generated\lp2net_version.h` (from
+  `src/version.h.in`) -> the VERSIONINFO of xlive.dll and LP2NetSetup.exe (`src/versioninfo.rc`, ProductName
+  "LP2 Netplay"), the first log line (`LP2Net 0.2.0 (<date> <time>) in <dir>`), the overlay title (ImGui ID kept as
+  `###LP2 Netplay`; there is no imgui.ini, so nothing moves) and the package name.
+- LP2NetSetup.exe (`src/setup/`): Win32 dialog, static CRT, imports only Windows DLLs, ~3.5 MB with xlive.dll as
+  RCDATA (`build\generated\payload.rc`). CMake: OBJECT_DEPENDS takes no `$<TARGET_FILE>`, and a GENERATED source is
+  deleted by `--clean-first`, so payload.rc is written at configure time with the plain path `build\xlive.dll`
+  (single-config Ninja only). RC sources get COMPILE_OPTIONS too: xlive's `/W4 /utf-8` are now CXX-only.
+  - Manifest: asInvoker (without it, "Setup" in the file name triggers Windows' installer detection and a UAC
+    prompt), Common Controls 6, PerMonitorV2.
+  - Finds the game like install.ps1: `HKLM\SOFTWARE\Capcom\LostPlanet 2` installdir (32-bit view), else every
+    Steam library in libraryfolders.vdf.
+  - Tells files apart: Capcom's stub by SHA-256; ours by ProductName, or for builds before 0.2.0 (no version
+    resource) by the UTF-16 strings `xlive_capcom.dll` and `lp2net.ini` (both v0.1.0 builds on this PC match).
+    Anything else is refused and left alone. A locked xlive.dll is refused with "in use", not "unknown file".
+  - Install: Capcom's stub -> xlive_capcom.dll (only when there is none yet), then ours via `xlive.dll.lp2new`,
+    hash check, MoveFileEx(REPLACE_EXISTING), hash check; a failure leaves the old file (and moves the stub back if
+    it had just been moved). Steam putting the stub back after an update (xlive.dll = xlive_capcom.dll = Capcom's)
+    is "not active" -> Install. Refused: unknown xlive.dll, xlive_capcom.dll that is not Capcom's, ours without
+    Capcom's stub (-> Steam verify), game or launcher running from that folder.
+  - Uninstall: xlive_capcom.dll back over xlive.dll; a duplicate Capcom copy is deleted; settings and log stay.
+  - Settings: `[Player] Name` (same rule as config.cpp), `[Network] Peers` (letters, digits, `.:,;_-[]` and
+    spaces), `[Debug] AllowMultipleCopies=0` (as install.ps1). From the command line only the given ones change.
+  - GFWL leftovers (opt-in): `gfwlivesetup.exe`, `xliveredist.msi`, `wllogin_32/64.msi`, `*.exe.cat`,
+    `*.exe.cfg` in the game folder root, matched by name suffix (FindFirstFile's 8.3 matching would let `*.exe.cfg`
+    catch `x.exe.cfgbak`). Listed in the window before anything moves; moved (same drive, so nothing is copied or
+    deleted) to `<game>\LP2Netplay-backup\`; Uninstall moves them back, dropping backup copies that Steam has
+    already replaced with identical files. Steam's install script for 45750 runs `%INSTALLDIR%\gwfwlsetup.exe /q`,
+    a misspelling, so Steam never ran gfwlivesetup.exe anyway; neither stub nor ours reads the .cat/.cfg files.
+    Steam "verify" downloads moved files again (~260 MB).
+  - Firewall: status via INetFwPolicy2 (readable without admin, not tied to netsh's English output). The button
+    starts `LP2NetSetup.exe --firewall --game-dir <dir>` through ShellExecute "runas" (UAC): it disables enabled
+    inbound block rules for LP2DX9/LP2DX11.exe and adds "Lost Planet 2 (LP2 Netplay) <exe>" (inbound UDP, private
+    and public; the names install.ps1 uses). Never automatic; `--firewall --dry-run` only prints the plan.
+  - Command line (`--help`): `--status`, `--install`/`--repair [--name N] [--peer A] [--cleanup]`, `--uninstall`,
+    `--firewall [--dry-run]`, `--game-dir DIR`. Output goes to the stdout the caller provides; exit 0/1/2.
+- `tests\setup_test.ps1`: 57 checks against fake game folders in %TEMP% (copy of Capcom's stub + dummy files),
+  including the old-build update (`-OldBuild`), locked files and a fake running game (a copy of ping.exe named
+  LP2DX9.exe). The window was also driven on a fake folder (WM_COMMAND clicks, PrintWindow captures): Install with
+  the backup ticked, Uninstall, result boxes.
+- Package (`tools\make_package.ps1`): `dist\LP2Netplay-<version>.zip` with LP2NetSetup.exe, HOW TO TEST.txt,
+  VERSION.txt (commit, SHA-256s) and the old script installer in `manual\` (fallback if the exe is blocked).
+- CI (`.github/workflows/build.yml`): windows-latest, `tools\build.bat` (falls back to vswhere when the Build Tools
+  path is missing), package, artifact; on `v*` tags a check that the tag matches project(VERSION), then a draft
+  release (GITHUB_TOKEN, `gh release create`, pre-release when the tag has a suffix). Actions pinned to commit
+  SHAs: checkout v7.0.1, upload-artifact v7.0.2, download-artifact v8.0.2. `.gitattributes` keeps .bat/.ps1/.txt
+  CRLF on the runner. The workflow has not run yet (needs a push).
+
 ## Multi-copy testing ([Debug] AllowMultipleCopies=1, off by default)
 - Single-instance check: CreateMutexA(NULL, TRUE, "sPlanetMain") + FindWindowW -> hooked via the game's IAT.
 - Keyboard reaches every copy (DirectInput background mode + GetAsyncKeyState) -> background copies get zeroed

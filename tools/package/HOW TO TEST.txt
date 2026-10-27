@@ -17,12 +17,19 @@ Each PC needs
 Install (on each PC)
 --------------------
 1. Quit Lost Planet 2 if it is running.
-2. Double-click "Install LP2 Netplay.bat".
-3. Fallback gamertag: press Enter (your Steam name is used in game).
-4. Friend's address: press Enter (leave it empty). Steam friends find each other.
-5. If it says the firewall is blocking the game, double-click "Allow through firewall.bat" and click Yes.
-   (Or simply click "Allow" when Windows asks the first time the game starts.)
-6. The first time Steam starts the game it may show the game's CD key: close that window and the game starts.
+2. Double-click LP2NetSetup.exe.
+   If Windows says "Windows protected your PC": click "More info", then "Run anyway". (The file is not signed.)
+3. Setup finds the game and says what is installed. Leave the settings as they are:
+   - Fallback gamertag: only used when Steam is not running (in game you have your Steam name).
+   - Friend's internet address: leave it empty. Steam friends find each other.
+4. Optional: tick "move them to a backup folder" to tidy away the old Games for Windows LIVE files. Setup shows
+   which files it found. They go to the LP2Netplay-backup folder in the game folder; Uninstall puts them back.
+5. Click Install. A message says whether it worked and what was done.
+6. Windows Firewall: if Setup says the firewall is blocking the game, click "Allow through firewall" and click
+   Yes when Windows asks. (Or simply click "Allow" when Windows asks the first time the game goes online.)
+7. The first time Steam starts the game it may show the game's CD key: close that window and the game starts.
+
+After a game update, Steam may put Capcom's file back. Setup then says "not active": click Install again.
 
 Play
 ----
@@ -44,7 +51,13 @@ If something goes wrong
 Send these files from BOTH PCs (they are in the Lost Planet 2 game folder):
   lp2net.log   lp2net.ini
 The game folder: Steam > right-click Lost Planet 2 > Manage > Browse local files.
+The first line of lp2net.log says which LP2 Netplay version is running.
 
 Uninstall
 ---------
-Double-click "Uninstall LP2 Netplay.bat". (Steam's "Verify integrity of game files" also restores the original.)
+Run LP2NetSetup.exe and click Uninstall. (Steam's "Verify integrity of game files" also restores Capcom's file.)
+
+If LP2NetSetup.exe is blocked
+-----------------------------
+The "manual" folder has the older script installer: double-click "Install LP2 Netplay.bat" there (and
+"Uninstall LP2 Netplay.bat" to remove it, "Allow through firewall.bat" for the firewall).

@@ -1,0 +1,44 @@
+#include <windows.h>
+
+#include "resource.h"
+
+#define VER_FILEDESC "LP2 Netplay Setup"
+#define VER_INTERNAL "LP2NetSetup"
+#define VER_ORIGNAME "LP2NetSetup.exe"
+#define VER_FILETYPE VFT_APP
+#include "../versioninfo.rc"
+
+IDD_MAIN DIALOGEX 0, 0, 330, 294
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX
+CAPTION "LP2 Netplay Setup"
+FONT 9, "Segoe UI", 400, 0, 0x1
+BEGIN
+	LTEXT "LP2 Netplay", IDC_TITLE, 10, 6, 310, 14
+	LTEXT "Brings back Lost Planet 2 multiplayer: System Link, the game's Online menus and Steam invites.",
+		IDC_STATIC, 10, 22, 310, 9
+
+	GROUPBOX "Game", IDC_STATIC, 7, 36, 316, 60
+	EDITTEXT IDC_DIR, 14, 49, 246, 13, ES_AUTOHSCROLL | ES_READONLY
+	PUSHBUTTON "Browse...", IDC_BROWSE, 265, 48, 52, 15
+	LTEXT "", IDC_STATUS, 14, 67, 303, 26
+
+	GROUPBOX "Settings (you can leave these as they are)", IDC_STATIC, 7, 100, 316, 46
+	LTEXT "Fallback gamertag (only used when Steam is not running):", IDC_STATIC, 14, 114, 196, 9
+	EDITTEXT IDC_NAME, 214, 112, 103, 13, ES_AUTOHSCROLL
+	LTEXT "Friend's internet address (usually leave empty):", IDC_STATIC, 14, 130, 196, 9
+	EDITTEXT IDC_PEER, 214, 128, 103, 13, ES_AUTOHSCROLL
+
+	GROUPBOX "Old Games for Windows LIVE files (optional)", IDC_STATIC, 7, 150, 316, 44
+	AUTOCHECKBOX "When installing, move them to a backup folder (Uninstall puts them back)", IDC_CLEANUP,
+		14, 162, 303, 10
+	LTEXT "", IDC_LEFTOVERS, 26, 174, 291, 17
+
+	GROUPBOX "Windows Firewall", IDC_STATIC, 7, 198, 316, 38
+	LTEXT "", IDC_FWSTATUS, 14, 210, 206, 24
+	PUSHBUTTON "Allow through firewall", IDC_FIREWALL, 226, 211, 91, 16
+
+	EDITTEXT IDC_LOG, 7, 241, 316, 30, ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL
+	DEFPUSHBUTTON "Install", IDC_INSTALL, 7, 275, 64, 15
+	PUSHBUTTON "Uninstall", IDC_UNINSTALL, 76, 275, 64, 15
+	PUSHBUTTON "Close", IDCANCEL, 259, 275, 64, 15
+END
