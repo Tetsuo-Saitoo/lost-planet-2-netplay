@@ -1,0 +1,50 @@
+LP2 Netplay - test build
+========================
+
+What this is: a replacement for the Games for Windows LIVE file (xlive.dll) that Capcom stubbed out in 2025.
+With it, Lost Planet 2's multiplayer works again: System Link on your network, and the game's own Online menus
+(Player Match, Campaign with Xbox LIVE) over the internet, with Steam friends, invites and Steam's relay servers.
+Your saves are not touched (they are copied to a folder named after your Steam name). Uninstall puts Capcom's file
+back.
+
+Each PC needs
+-------------
+- Lost Planet 2 installed from Steam on that person's own Steam account (each player needs their own copy;
+  Steam won't run one shared copy on two PCs at the same time).
+- Steam fully updated the game (no update pending).
+- Start the game from Steam (that is what turns on the Steam overlay, invites and Join Game).
+
+Install (on each PC)
+--------------------
+1. Quit Lost Planet 2 if it is running.
+2. Double-click "Install LP2 Netplay.bat".
+3. Fallback gamertag: press Enter (your Steam name is used in game).
+4. Friend's address: press Enter (leave it empty). Steam friends find each other.
+5. If it says the firewall is blocking the game, double-click "Allow through firewall.bat" and click Yes.
+   (Or simply click "Allow" when Windows asks the first time the game starts.)
+6. The first time Steam starts the game it may show the game's CD key: close that window and the game starts.
+
+Play
+----
+Same house (System Link, as before):
+  Host: Campaign > Connection Type: System Link > Create Game. Other player: Campaign > Quick Match.
+  Versus: Online > System Link > Create Match / Quick Match.
+
+Over the internet (the game's own Online menu):
+  Host: Online > Player Match > Create Match.
+  Other player: Online > Player Match > Custom Match > Search (or Quick Match). The host's game is in the list.
+  Or: the host presses "Game invite" in the lobby, picks the friend in Steam, and the friend accepts the Steam
+  invite. Friends can also right-click the host in the Steam friends list > Join Game.
+
+The Home key (or holding Back on a controller) opens the LP2 Netplay overlay: games found, Steam friends playing,
+Join by IP, settings. Esc or B closes it.
+
+If something goes wrong
+-----------------------
+Send these files from BOTH PCs (they are in the Lost Planet 2 game folder):
+  lp2net.log   lp2net.ini
+The game folder: Steam > right-click Lost Planet 2 > Manage > Browse local files.
+
+Uninstall
+---------
+Double-click "Uninstall LP2 Netplay.bat". (Steam's "Verify integrity of game files" also restores the original.)

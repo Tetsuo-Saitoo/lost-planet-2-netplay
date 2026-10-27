@@ -1,0 +1,135 @@
+; xlive.dll replacement for Lost Planet 2.
+; Every ordinal of Capcom's 2025 "xlive-dummy" stub is exported. This file lists the ones we implement
+; (networking, sessions, users, notifications, frame/input hooks); forwards.cpp forwards the rest to Capcom's
+; stub, which the installer keeps as xlive_capcom.dll.
+LIBRARY xlive
+EXPORTS
+	XWSAStartup                         @1     NONAME
+	XWSACleanup                         @2     NONAME
+	XSocketCreate                       @3     NONAME
+	XSocketClose                        @4     NONAME
+	XSocketShutdown                     @5     NONAME
+	XSocketIOCTLSocket                  @6     NONAME
+	XSocketSetSockOpt                   @7     NONAME
+	XSocketGetSockOpt                   @8     NONAME
+	XSocketGetSockName                  @9     NONAME
+	XSocketGetPeerName                  @10    NONAME
+	XSocketBind                         @11    NONAME
+	XSocketConnect                      @12    NONAME
+	XSocketListen                       @13    NONAME
+	XSocketAccept                       @14    NONAME
+	XSocketSelect                       @15    NONAME
+	XSocketRecv                         @18    NONAME
+	XSocketRecvFrom                     @20    NONAME
+	XSocketSend                         @22    NONAME
+	XSocketSendTo                       @24    NONAME
+	XWSASendTo                          @25    NONAME
+	XSocketInet_Addr                    @26    NONAME
+	XWSAGetLastError                    @27    NONAME
+	XWSAFDIsSet                         @34    NONAME
+	XSocketNTOHS                        @38    NONAME
+	XSocketHTONS                        @40    NONAME
+
+	XNetStartup                         @51    NONAME
+	XNetCleanup                         @52    NONAME
+	XNetRandom                          @53    NONAME
+	XNetRegisterKey                     @55    NONAME
+	XNetUnregisterKey                   @56    NONAME
+	XNetXnAddrToInAddr                  @57    NONAME
+	XNetInAddrToXnAddr                  @60    NONAME
+	XNetUnregisterInAddr                @63    NONAME
+	XNetXnAddrToMachineId               @64    NONAME
+	XNetConnect                         @65    NONAME
+	XNetGetConnectStatus                @66    NONAME
+	XNetDnsLookup                       @67    NONAME
+	XNetDnsRelease                      @68    NONAME
+	XNetQosListen                       @69    NONAME
+	XNetQosLookup                       @70    NONAME
+	XNetQosServiceLookup                @71    NONAME
+	XNetQosRelease                      @72    NONAME
+	XNetGetTitleXnAddr                  @73    NONAME
+	XNetGetEthernetLinkStatus           @75    NONAME
+	XNetGetBroadcastVersionStatus       @76    NONAME
+	XNetGetOpt                          @78    NONAME
+	XNetGetXnAddrPlatform               @82    NONAME
+	XNetGetSystemLinkPort               @83    NONAME
+	XNetSetSystemLinkPort               @84    NONAME
+
+	XNotifyGetNext                      @651   NONAME
+	XGetOverlappedExtendedError         @1082  NONAME
+	XGetOverlappedResult                @1083  NONAME
+
+	XLiveInitialize                     @5000  NONAME
+	XLiveInput                          @5001  NONAME
+	XLiveRender                         @5002  NONAME
+	XLiveUninitialize                   @5003  NONAME
+	XLiveOnDestroyDevice                @5006  NONAME
+	XLiveOnResetDevice                  @5007  NONAME
+	XLivePreTranslateMessage            @5030  NONAME
+
+	XShowGuideUI                        @5215  NONAME
+	XCloseHandle                        @5251  NONAME
+	XCancelOverlapped                   @5254  NONAME
+	XEnumerate                          @5256  NONAME
+	XShowSigninUI                       @5260  NONAME
+	XUserGetXUID                        @5261  NONAME
+	XUserGetSigninState                 @5262  NONAME
+	XUserGetName                        @5263  NONAME
+	XUserAreUsersFriends                @5264  NONAME
+	XUserCheckPrivilege                 @5265  NONAME
+	XUserGetSigninInfo                  @5267  NONAME
+	XNotifyCreateListener               @5270  NONAME
+	XUserSetProperty                    @5276  NONAME
+	XUserSetContext                     @5277  NONAME
+	XUserGetContext                     @5289  NONAME
+	XUserSetPropertyEx                  @5293  NONAME
+	XLiveInitializeEx                   @5297  NONAME
+
+	XSessionCreate                      @5300  NONAME
+	XOnlineStartup                      @5310  NONAME
+	XOnlineCleanup                      @5311  NONAME
+	XFriendsCreateEnumerator            @5312  NONAME
+	XInviteGetAcceptedInfo              @5315  NONAME
+	XSessionWriteStats                  @5317  NONAME
+	XSessionStart                       @5318  NONAME
+	XSessionSearchEx                    @5319  NONAME
+	XSessionSearchByID                  @5320  NONAME
+	XSessionSearch                      @5321  NONAME
+	XSessionModify                      @5322  NONAME
+	XSessionMigrateHost                 @5323  NONAME
+	XOnlineGetNatType                   @5324  NONAME
+	XSessionLeaveLocal                  @5325  NONAME
+	XSessionJoinRemote                  @5326  NONAME
+	XSessionJoinLocal                   @5327  NONAME
+	XSessionGetDetails                  @5328  NONAME
+	XSessionDelete                      @5330  NONAME
+	XSessionEnd                         @5332  NONAME
+	XSessionArbitrationRegister         @5333  NONAME
+	XSessionLeaveRemote                 @5336  NONAME
+
+	; Guide screens (xui.cpp): logged, then handed to Capcom's stub
+	XShowMessagesUI                     @5206  NONAME
+	XShowGameInviteUI                   @5208  NONAME
+	XShowMessageComposeUI               @5209  NONAME
+	XShowFriendRequestUI                @5210  NONAME
+	XShowPlayerReviewUI                 @5214  NONAME
+	XShowKeyboardUI                     @5216  NONAME
+	XShowAchievementsUI                 @5250  NONAME
+	XShowGamerCardUI                    @5252  NONAME
+	XShowMessageBoxUI                   @5266  NONAME
+	XShowFriendsUI                      @5275  NONAME
+	XInviteSend                         @5316  NONAME
+	XShowMarketplaceUI                  @5365  NONAME
+
+	; LIVE storage (xstorage.cpp): nothing to download any more
+	XStorageUploadFromMemoryGetProgress @5304  NONAME
+	XStorageUploadFromMemory            @5305  NONAME
+	XStorageEnumerate                   @5306  NONAME
+	XStorageDownloadToMemoryGetProgress @5307  NONAME
+	XStorageDelete                      @5308  NONAME
+	XStorageBuildServerPathByXuid       @5309  NONAME
+	XStorageBuildServerPath             @5344  NONAME
+	XStorageDownloadToMemory            @5345  NONAME
+
+	; LIVE stats (xstats.cpp)
+	XUserReadStats                      @5281  NONAME

@@ -1,0 +1,9 @@
+# Analysis material: game binaries, decrypted copies, Ghidra projects, decompiler output. Never commit.
+re-work/
+.re/
+build/
+out/
+*.pdb
+*.ilk
+*.obj
+dist/
