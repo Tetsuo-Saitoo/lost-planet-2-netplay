@@ -219,12 +219,36 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   reports that our game packets reach them over UDP (`hearYourGame`, new optional field at the end of HelloBody;
   older builds without it get the core rule). A relayed game frame is dropped when that peer's UDP game packets
   arrived within 1.5 s (the game already has it). Hellos and beacons stop 2 min after a peer goes silent.
-- Steam Join Game on a friend who hosts a System Link game still asks the player to open System Link > Quick Match
-  (the game only accepts LIVE-style invites). The log line now carries the session flags.
+  The report is sticky: it turns yes when their game packets arrive over UDP and no only when they arrive through
+  Steam alone; a quiet lobby keeps the last answer (a plain 10 s freshness flipped it to "no" in every idle lobby).
+- Steam Join Game on a friend who hosts a System Link game still asks the player to open the menu themselves (the
+  game only accepts LIVE-style invites). In a real test that prompt ("open System Link (or Campaign)") sent the
+  player into the wrong menus. Hosts now put their RICH_MODE in the lobby data ("mode"), and the prompt names the
+  path: Campaign host -> "open Campaign, set Connection Type to System Link, then pick Quick Match"; Versus host ->
+  "open Online > System Link, then pick Quick Match". Older hosts get the old text. The log line carries flags and
+  mode.
 - VERIFIED (two copies on one PC): Online > Ranked Match > Quick Match on one copy creates a ranked lobby
   (flags 0x43F, arbitration); Quick Match on the other finds and joins it; the countdown starts with 2 players;
   ArbitrateNonce/ArbitrateResult between the copies, XSessionArbitrationRegister as host and peer, XSessionStart,
-  Elimination battle. The new UDP report works ("our game packets now reach them over UDP").
+  Elimination battle. The new UDP report works ("our game packets now reach them over UDP"). A full ranked battle
+  ran 10 min with both players idle (no inactivity kick, no drop), ended with TerminateSession, and the profile got
+  ranked points (210 pts). A second ranked battle (Team Elimination, both copies idle) lost the client 4.4 min in:
+  it sent close-leave on its own with no xlive call or network error before it, the host then dropped it ("Improve
+  TrueSkill score of dropped user") and deleted the session. Same signature as the idle Player Match earlier; it
+  did not happen in the 10-minute Elimination battle. Most likely the game's own handling of a player who never
+  moves; check with real players before treating it as a bug (the real two-PC drop was a different thing: a
+  20 s receive timeout, fixed above).
+- VERIFIED (two copies): Online > System Link > Create Match (Data Post Battle) on one copy; System Link > Quick
+  Match on the other finds it (Search / SearchAns), joins (2/16), host Begin the match -> both in the battle on
+  opposite teams.
+- Ranked Match end: the game asks XUserEstimateRankForRating (#5346) where the new rating ranks. Capcom's stub
+  returned 0 without completing, logged by the game as "XUserEstimateRankForRating(1) failed". Now ours (xstats.cpp):
+  completes asynchronously with rank 1 for every rating (no shared leaderboard yet). Not seen in game yet: the
+  second ranked test (Team Elimination) ended before the time limit (below). GOTCHA: LP2 builds the rank
+  requests as 12-byte records (DWORD view id + LONGLONG rating, no padding), unlike every other GFWL struct;
+  results buffer = 8 + 4 per rating.
+- Log: friends' Steam lobbies are re-read every 15 s; their "lobby ... data" line is now only logged when the
+  lobby is new or its data changed.
 - Achievements: LP2 on Steam has no Steam achievements (no steam_api.dll, no stats schema for 45750); Capcom's stub
   answers XUserWriteAchievements with 0 and XUserCreateAchievementEnumerator with an error, so unlocks go nowhere
   since 2025. Candidate for phase 4: keep them locally and show them in the overlay.

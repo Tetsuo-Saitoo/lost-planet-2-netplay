@@ -133,3 +133,4 @@ EXPORTS
 
 	; LIVE stats (xstats.cpp)
 	XUserReadStats                      @5281  NONAME
+	XUserEstimateRankForRating          @5346  NONAME

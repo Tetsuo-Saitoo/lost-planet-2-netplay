@@ -6,6 +6,7 @@
 #include "log.h"
 #include "matchmaking.h"
 #include "overlay.h"
+#include "presence.h"
 #include "steam.h"
 #include "upnp.h"
 #include "util.h"
@@ -39,10 +40,12 @@ struct Peer {
 	uint64_t steamId = 0;      // known when they run Steam: lets us reach them through the Steam relay
 	ULONGLONG lastDirect = 0;      // last packet over plain UDP
 	ULONGLONG lastDirectGame = 0;  // last game packet over plain UDP
+	ULONGLONG lastRelayGame = 0;   // last game packet through Steam
 	ULONGLONG lastDirectAck = 0;   // last HelloAck over plain UDP: they hear us directly too
 	ULONGLONG lastRelay = 0;       // last packet through Steam
 	bool reportsGame = false;      // their hellos say whether our game packets reach them over UDP (0.2+)
 	bool hearOurGame = false;      // ...and the last one said yes
+	bool toldHear = false;         // what our hellos tell them about their game packets
 };
 
 struct ManualPeer {
@@ -313,7 +316,7 @@ void SendCorePeer(const Peer& p, PacketType type, const void* body, size_t cb) {
 	}
 }
 
-HelloBody MakeHello(const sockaddr_in* yourAddr, const Peer* to = nullptr) {
+HelloBody MakeHello(const sockaddr_in* yourAddr, Peer* to = nullptr) {
 	HelloBody b{};
 	strncpy_s(b.name, g_me.name.c_str(), _TRUNCATE);
 	b.xnaddr = LocalXnAddr();
@@ -321,7 +324,18 @@ HelloBody MakeHello(const sockaddr_in* yourAddr, const Peer* to = nullptr) {
 		b.yourAddr = *yourAddr;
 	}
 	b.steamId = SteamMyId();
-	b.hearYourGame = to && to->lastDirectGame && GetTickCount64() - to->lastDirectGame < kDirectFresh;
+	if (to) {
+		// Changes only on evidence: their game packets over UDP (yes), or only through Steam (no). A quiet lobby
+		// keeps the last answer, so the relay does not restart every time the game stops talking for a while.
+		ULONGLONG now = GetTickCount64();
+		if (to->lastDirectGame && now - to->lastDirectGame < kDirectFresh) {
+			to->toldHear = true;
+		}
+		else if (to->lastRelayGame && now - to->lastRelayGame < kDirectFresh) {
+			to->toldHear = false;
+		}
+		b.hearYourGame = to->toldHear;
+	}
 	return b;
 }
 
@@ -382,6 +396,7 @@ std::map<std::string, std::string> MakeLobbyData() {
 	         g_advert.inGame ? 1 : 0);
 	d["slots"] = buf;
 	d["attrs"] = hex(g_advert.attrs.data(), g_advert.attrs.size());
+	d["mode"] = std::to_string(CurrentPresence().mode);  // RICH_MODE: tells a System Link guest which menu to open
 	return d;
 }
 
@@ -746,7 +761,7 @@ void OnRelayFrame(uint64_t from, const BYTE* data, uint32_t cb) {
 		Peer& p = UpsertPeer(h.instanceId);
 		ULONGLONG now = GetTickCount64();
 		p.steamId = from;
-		p.lastRelay = now;
+		p.lastRelay = p.lastRelayGame = now;
 		p.offset = h.srcOffset;
 		if (p.lastDirectGame && now - p.lastDirectGame < kRelayDuplicateMs) {
 			return;  // their UDP packets reach us: this is the relay's copy of one the game already has
@@ -1321,7 +1336,8 @@ void SessionFromSteamLobby(const LobbyEntry& lobby, bool joinNow) {
 		}
 	}
 	if (joinNow) {
-		JoinSessionFromSteam(info, flags, lobby.owner, hostName);
+		std::string mode = get("mode");
+		JoinSessionFromSteam(info, flags, lobby.owner, hostName, mode.empty() ? 0 : strtoul(mode.c_str(), nullptr, 10));
 	}
 }
 

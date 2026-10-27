@@ -45,6 +45,20 @@ struct XUSER_STATS_READ_RESULTS {
 };
 static_assert(sizeof(XUSER_STATS_SPEC) == 136 && sizeof(XUSER_STATS_COLUMN) == 24 && sizeof(XUSER_STATS_ROW) == 48);
 
+// The one exception to natural alignment: LP2 builds these as 12-byte records (NetworkRankingLive::moveUpdateRanking).
+#pragma pack(push, 4)
+struct XUSER_RANK_REQUEST {
+	DWORD dwViewId;
+	LONGLONG i64Rating;
+};
+#pragma pack(pop)
+
+struct XUSER_ESTIMATE_RANK_RESULTS {
+	DWORD dwNumRankings;
+	DWORD* pdwRankings;
+};
+static_assert(sizeof(XUSER_RANK_REQUEST) == 12);
+
 constexpr BYTE kDataTypeInt64 = 2;
 
 size_t ResultsSize(DWORD numXuids, DWORD numSpecs, const XUSER_STATS_SPEC* specs) {
@@ -94,6 +108,29 @@ extern "C" DWORD WINAPI XUserReadStats(DWORD dwTitleId, DWORD dwNumXuids, const 
 				r.pColumns[c].Value.type = kDataTypeInt64;
 			}
 		}
+	}
+	return CompleteOverlapped(pOverlapped, ERROR_SUCCESS, (DWORD)need);
+}
+
+// After a Ranked Match the game asks where the new rating would place the player. Capcom's stub answered 0 without
+// completing the request, which the game logs as a failed ranking update. Nobody else is on our leaderboards yet,
+// so every rating ranks first.
+extern "C" DWORD WINAPI XUserEstimateRankForRating(DWORD dwNumRatingLookups, const XUSER_RANK_REQUEST* pRatingLookups,
+                                                   DWORD cbResults, XUSER_ESTIMATE_RANK_RESULTS* pResults,
+                                                   XOVERLAPPED* pOverlapped) {
+	size_t need = sizeof(XUSER_ESTIMATE_RANK_RESULTS) + dwNumRatingLookups * sizeof(DWORD);
+	if ((dwNumRatingLookups && !pRatingLookups) || !pResults) {
+		return ERROR_INVALID_PARAMETER;
+	}
+	if (cbResults < need) {
+		return ERROR_INSUFFICIENT_BUFFER;
+	}
+	LOG("XUserEstimateRankForRating(%lu ratings, view 0x%lX rating %lld): rank 1", dwNumRatingLookups,
+	    dwNumRatingLookups ? pRatingLookups[0].dwViewId : 0, dwNumRatingLookups ? pRatingLookups[0].i64Rating : 0);
+	pResults->dwNumRankings = dwNumRatingLookups;
+	pResults->pdwRankings = (DWORD*)(pResults + 1);
+	for (DWORD i = 0; i < dwNumRatingLookups; ++i) {
+		pResults->pdwRankings[i] = 1;
 	}
 	return CompleteOverlapped(pOverlapped, ERROR_SUCCESS, (DWORD)need);
 }
