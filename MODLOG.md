@@ -275,6 +275,30 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   Voice tab on screen, two real PCs. The second copy did not quit on WM_CLOSE (it showed something, probably the
   quit prompt, that needs input) and was ended by PID.
 
+### Proximity voice (requested next): findings and plan
+- MT Framework's type registry is readable statically: every class registers through the MtDTI constructor
+  (DX9 0x780A60: name, parent DTI, object size), 3540 classes. getDTI is `mov eax, dti; ret` at vtable slot 4,
+  createProperty at slot 3 registers each field's name and address (scratch scripts dti.py / props.py).
+- Positions: uCoord (child of cUnit, 0xE0 bytes) registers mPos at +0x30, mQuat +0x50, mWmat (world matrix) +0x70,
+  so every unit has its world position and orientation at fixed offsets. Soldiers are uHuman (0x2620, child of
+  uFighter -> uCharacterBase), with variants uHm00..uHm29; Akrids are uAkrid/uAkNN.
+- Players: cPlayer (0x8D0) registers mpCtrlPl (uCtrlPlayer*), mpCtrlCam (uCtrlCamera*) and mInfo
+  (cPlayer::PlInfo: mPlayStatus, mPlNo, mCustomPartsID); uCtrlCamera also registers mPlNo. So the likely chain is
+  cPlayer -> mpCtrlPl -> the soldier it drives -> +0x30, and mpCtrlCam for the listener (or sCamera, 0xD50, a
+  cSystem singleton with sCamera::Viewport). Remote players' soldiers are driven by cThinkNetPuppet; the
+  network classes (cNetGameManager, cNetActHm) register no fields. sPlanetUnit (sUnit, with sUnit::MoveLine lists)
+  holds the live units.
+- Still unknown: where the cPlayer instances live, and how a player number (mPlNo) maps to a session member and
+  XUID (candidates: PlInfo may hold the gamertag; sPlanetNetwork / cNetGameManager). Both need memory reads in a
+  running mission with two players, plus the world scale (MT titles usually use 1 unit = 1 cm).
+- Plan: (1) a position source in xhv.cpp that finds the singletons at runtime by pattern (DX9 and DX11 differ, as in
+  gamelog.cpp), reads each player's soldier position and the camera, and maps players to talker XUIDs, logging what
+  it finds; (2) a stereo mixer: constant-power pan from the angle to the camera's facing, distance gain from full
+  volume inside [Voice] ProximityNear to silent at ProximityMax, smoothed per block; (3) [Voice] Proximity=1 to turn
+  it on, falling back to the flat mix whenever positions are missing (menus, lobby, loading, a player not mapped).
+  Own panning over waveOut rather than OpenAL Soft: no extra DLL or LGPL notice, and stereo panning is enough for
+  "where is that voice"; HRTF could come later.
+
 ### Gotchas
 - GetTickCount64 stamps from several threads: `now - t` can underflow when another thread stamped t after the
   caller read `now` (this erased a peer's entry the moment it was added). xhv.cpp uses Age(t, now).
