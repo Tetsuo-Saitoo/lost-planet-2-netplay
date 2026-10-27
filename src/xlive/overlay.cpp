@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "log.h"
+#include "lp2net_version.h"
 #include "net.h"
 #include "steam.h"
 #include "xhv.h"
@@ -452,7 +453,7 @@ void DrawWindow() {
 		ImGui::SetNextWindowFocus();  // so keyboard and controller navigation start in the overlay
 		g_justOpened = false;
 	}
-	if (ImGui::Begin("LP2 Netplay", &open, ImGuiWindowFlags_NoCollapse)) {
+	if (ImGui::Begin("LP2 Netplay " LP2NET_VERSION "###LP2 Netplay", &open, ImGuiWindowFlags_NoCollapse)) {
 		// B on a controller closes the overlay unless it is editing a field
 		if (ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) && !ImGui::IsAnyItemActive()) {
 			open = false;

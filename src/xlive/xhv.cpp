@@ -486,6 +486,7 @@ struct Counters {
 	std::atomic<uint32_t> underruns{0};
 	std::atomic<uint32_t> notTalker{0};    // audio from someone the game did not register (not in our session)
 	std::atomic<uint32_t> mutedDrops{0};
+	std::atomic<uint32_t> duplicates{0};   // the same packet again (UDP and relay), or a late one
 	std::atomic<uint32_t> played{0};       // 20 ms blocks with someone's voice in them
 	std::atomic<uint32_t> gameChannel{0};  // bytes the game passed to SubmitIncomingChatData (nothing should)
 };
@@ -659,6 +660,23 @@ void OnVoicePacket(uint32_t from, const BYTE* body, int cb) {
 			++g_n.notTalker;
 			return;
 		}
+		// Until net.cpp knows which path works, a packet can arrive twice (UDP and the Steam relay): play it once,
+		// before decoding, and skip late ones the playout has moved past. A big jump back is the talker restarting.
+		Playout& o = g_talkers[talker].out;
+		auto behind = (int16_t)(o.nextSeq - m.seq);
+		if (o.haveSeq && behind > 0 && behind < 1000 && Age(o.lastPacket, now) < 5000) {
+			++g_n.duplicates;
+			return;
+		}
+		if (o.haveSeq && m.seq != o.nextSeq) {
+			uint16_t gap = (uint16_t)(m.seq - o.nextSeq);
+			if (gap < 1000) {
+				g_n.lost += gap;
+			}
+		}
+		o.haveSeq = true;
+		o.nextSeq = (uint16_t)(m.seq + 1);
+		o.lastPacket = now;
 	}
 	std::vector<int16_t> pcm;
 	bool ok = false;
@@ -683,17 +701,7 @@ void OnVoicePacket(uint32_t from, const BYTE* body, int cb) {
 	if (it == g_talkers.end()) {
 		return;
 	}
-	Playout& o = it->second.out;
-	if (o.haveSeq && m.seq != o.nextSeq) {
-		uint16_t gap = (uint16_t)(m.seq - o.nextSeq);
-		if (gap < 1000) {
-			g_n.lost += gap;
-		}
-	}
-	o.haveSeq = true;
-	o.nextSeq = (uint16_t)(m.seq + 1);
-	o.lastPacket = now;
-	o.Push(pcm, (m.flags & kAudioSpurtStart) != 0, &g_n.underruns);
+	it->second.out.Push(pcm, (m.flags & kAudioSpurtStart) != 0, &g_n.underruns);
 }
 
 // ---- the voice thread: microphone, playback, announcements ---------------------------------------------------------
@@ -982,12 +990,13 @@ private:
 		}
 		lastSig_ = sig;
 		LOG("voice: mic %s, captured %u blocks; sent %u packets / %u B; received %u packets / %u B; decoded %u "
-		    "(errors %u), lost %u, underruns %u; played %u blocks; dropped: not a talker %u, muted %u; game channel "
-		    "%u B%s",
+		    "(errors %u), lost %u, underruns %u; played %u blocks; dropped: not a talker %u, muted %u, duplicates %u; "
+		    "game channel %u B%s",
 		    SourceName(cap_), (uint32_t)g_n.captured, (uint32_t)g_n.sentPackets, (uint32_t)g_n.sentBytes,
 		    (uint32_t)g_n.recvPackets, (uint32_t)g_n.recvBytes, (uint32_t)g_n.decoded, (uint32_t)g_n.decodeErrors,
 		    (uint32_t)g_n.lost, (uint32_t)g_n.underruns, (uint32_t)g_n.played, (uint32_t)g_n.notTalker,
-		    (uint32_t)g_n.mutedDrops, (uint32_t)g_n.gameChannel, dump_.IsOpen() ? "; dump open" : "");
+		    (uint32_t)g_n.mutedDrops, (uint32_t)g_n.duplicates, (uint32_t)g_n.gameChannel,
+		    dump_.IsOpen() ? "; dump open" : "");
 	}
 
 	Source cap_ = Source::None;

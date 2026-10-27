@@ -366,7 +366,12 @@ void OnCallback(const CallbackMsg_t& m) {
 			bool join = it->second;
 			g_lobbyWaiting.erase(it);
 			LobbyEntry e = ReadLobby(r->lobby);
-			LOG("steam: lobby %llu data (%zu keys)%s", r->lobby, e.data.size(), join ? " for a join" : "");
+			// friends' lobbies are re-read every 15 s: log a lobby only when it is new, changed, or for a join
+			static std::map<uint64_t, std::map<std::string, std::string>> logged;
+			if (join || logged[r->lobby] != e.data) {
+				logged[r->lobby] = e.data;
+				LOG("steam: lobby %llu data (%zu keys)%s", r->lobby, e.data.size(), join ? " for a join" : "");
+			}
 			if (r->success) {
 				g_lobbyArrived.push_back({e, join});  // handed out after the Steam lock is released
 			}

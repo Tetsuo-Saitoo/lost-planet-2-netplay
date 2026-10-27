@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(lp2net LANGUAGES CXX)
+project(lp2net VERSION 0.2.0 LANGUAGES CXX RC)
 
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
 	message(FATAL_ERROR "Lost Planet 2 is a 32-bit game: configure with an x86 toolchain (vcvars32)")
@@ -8,6 +8,10 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+# The one version number: build\generated\lp2net_version.h feeds the version resources, the log and the overlay.
+set(LP2NET_GENERATED ${CMAKE_BINARY_DIR}/generated)
+configure_file(src/version.h.in ${LP2NET_GENERATED}/lp2net_version.h @ONLY)
 
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/third_party/imgui)
 add_library(imgui STATIC
@@ -46,10 +50,12 @@ add_library(xlive SHARED
 	src/xlive/matchmaking.cpp
 	src/xlive/xhv.cpp
 	src/xlive/probe.cpp
+	src/xlive/xlive.rc
 	src/xlive/exports.def)
 target_compile_definitions(xlive PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _WINSOCK_DEPRECATED_NO_WARNINGS
 	_CRT_SECURE_NO_WARNINGS)
-target_compile_options(xlive PRIVATE /W4 /wd4100 /utf-8)
+target_compile_options(xlive PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4 /wd4100 /utf-8>)
+target_include_directories(xlive PRIVATE ${LP2NET_GENERATED})
 target_link_libraries(xlive PRIVATE imgui ws2_32 iphlpapi bcrypt d3d9 d3d11 ole32 oleaut32 winmm)
 set_target_properties(xlive PROPERTIES OUTPUT_NAME xlive)
 
@@ -64,3 +70,23 @@ add_executable(voicetest tests/voicetest.cpp)
 target_compile_definitions(voicetest PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(voicetest PRIVATE ws2_32)
 add_dependencies(voicetest xlive)
+
+# LP2NetSetup.exe: the players' installer. One file: xlive.dll is embedded as a resource; static CRT, so nothing
+# else to install. (xlive.dll lands in the build folder with a single-config generator such as build.bat's Ninja.)
+set(LP2NET_XLIVE_DLL ${CMAKE_BINARY_DIR}/xlive.dll)
+file(CONFIGURE OUTPUT ${LP2NET_GENERATED}/payload.rc
+	CONTENT "#include \"resource.h\"\nIDR_XLIVE RCDATA \"${LP2NET_XLIVE_DLL}\"\n" @ONLY)
+add_executable(lp2netsetup WIN32
+	src/setup/main.cpp
+	src/setup/setup.cpp
+	src/setup/firewall.cpp
+	src/setup/setup.rc
+	src/setup/setup.manifest
+	${LP2NET_GENERATED}/payload.rc)
+set_source_files_properties(${LP2NET_GENERATED}/payload.rc PROPERTIES OBJECT_DEPENDS ${LP2NET_XLIVE_DLL})
+target_include_directories(lp2netsetup PRIVATE src/setup ${LP2NET_GENERATED})
+target_compile_definitions(lp2netsetup PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE)
+target_compile_options(lp2netsetup PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4 /utf-8>)
+target_link_libraries(lp2netsetup PRIVATE version bcrypt comctl32 ole32 oleaut32 shell32)
+set_target_properties(lp2netsetup PROPERTIES OUTPUT_NAME LP2NetSetup)
+add_dependencies(lp2netsetup xlive)

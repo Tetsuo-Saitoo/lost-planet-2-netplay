@@ -2,6 +2,7 @@
 #include "config.h"
 #include "gfwl.h"
 #include "log.h"
+#include "lp2net_version.h"
 #include "net.h"
 #include "overlay.h"
 #include "xhv.h"
@@ -24,7 +25,7 @@ void EnsureInit() {
 		if (Cfg().log) {
 			LogOpen((GameDir() + L"lp2net.log").c_str());
 		}
-		LOG("LP2Net " __DATE__ " " __TIME__ " in %ls", GameDir().c_str());
+		LOG("LP2Net " LP2NET_VERSION " (" __DATE__ " " __TIME__ ") in %ls", GameDir().c_str());
 		g_capcom = GetModuleHandleW(L"xlive_capcom.dll");
 		if (!g_capcom) {
 			g_capcom = LoadLibraryW((GameDir() + L"xlive_capcom.dll").c_str());

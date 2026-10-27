@@ -81,10 +81,12 @@ std::mutex g_inviteMutex;
 bool g_haveInvite = false;
 XINVITE_INFO g_invite{};
 constexpr DWORD kTitleId = 0x43430808;
+constexpr DWORD kModeCampaign = 5, kModeSystemLink = 12;  // RICH_MODE values (presence.cpp)
 }  // namespace
 
 namespace lp2net {
-void JoinSessionFromSteam(const XSESSION_INFO& info, DWORD flags, uint64_t hostSteamId, const std::string& hostName) {
+void JoinSessionFromSteam(const XSESSION_INFO& info, DWORD flags, uint64_t hostSteamId, const std::string& hostName,
+                          DWORD hostMode) {
 	bool live = (flags & XSESSION_CREATE_USES_MATCHMAKING) != 0;
 	if (live && Online()) {
 		{
@@ -102,9 +104,17 @@ void JoinSessionFromSteam(const XSESSION_INFO& info, DWORD flags, uint64_t hostS
 		PostNotification(XN_LIVE_INVITE_ACCEPTED, 0);
 	}
 	else {
-		LOG("invite: %s hosts a System Link game", hostName.c_str());
-		OverlayPrompt("LP2 Netplay", "Joining " + hostName + ": open System Link (or Campaign) and pick Quick Match.\n" +
-		                                 hostName + "'s game will be in the list.");
+		// The game has no invites for System Link: say exactly which menu finds the host's game.
+		LOG("invite: %s hosts a System Link game (flags 0x%lX, mode %lu)", hostName.c_str(), flags, hostMode);
+		const char* where = hostMode == kModeCampaign     ? "open Campaign, set Connection Type to System Link, then pick "
+		                                                    "Quick Match"
+		                    : hostMode == kModeSystemLink ? "open Online > System Link, then pick Quick Match"
+		                                                  : "open System Link (or Campaign) and pick Quick Match";
+		std::string what = hostMode == kModeCampaign     ? " Campaign game"
+		                   : hostMode == kModeSystemLink ? " Versus game"
+		                                                 : " game";
+		OverlayPrompt("LP2 Netplay", "Joining " + hostName + "'s" + what + ": " + where + ".\n" + hostName +
+		                                 "'s game will be in the list.");
 	}
 }
 }  // namespace lp2net

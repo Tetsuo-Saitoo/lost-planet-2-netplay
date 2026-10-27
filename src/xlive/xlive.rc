@@ -1,0 +1,5 @@
+#define VER_FILEDESC "LP2 Netplay: Games for Windows LIVE replacement for Lost Planet 2"
+#define VER_INTERNAL "lp2net-xlive"
+#define VER_ORIGNAME "xlive.dll"
+#define VER_FILETYPE VFT_DLL
+#include "../versioninfo.rc"

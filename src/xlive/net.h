@@ -144,7 +144,9 @@ std::vector<SessionView> ListSessions();
 void RefreshSessions();     // ask the LAN, peers and Steam (lobby search) for sessions now
 ULONGLONG SessionsStamp();  // changes whenever a Steam lobby search finished
 // The player picked a session from Steam (invite / Join Game): join it the way the game expects (xuser.cpp).
-void JoinSessionFromSteam(const XSESSION_INFO& info, DWORD flags, uint64_t hostSteamId, const std::string& hostName);
+// hostMode = the host's RICH_MODE (presence.h), 0 when an older build did not say.
+void JoinSessionFromSteam(const XSESSION_INFO& info, DWORD flags, uint64_t hostSteamId, const std::string& hostName,
+                          DWORD hostMode);
 // Steam lobby data describing a hosted session; joinNow = the player picked it from Steam (invite / Join Game).
 struct LobbyEntry;  // steam.h
 void SessionFromSteamLobby(const LobbyEntry& lobby, bool joinNow);

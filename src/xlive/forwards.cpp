@@ -44,7 +44,6 @@ FARPROC CapcomProc(WORD ordinal);
 	X(XUserReadProfileSettings, 5331)              \
 	X(XUserWriteProfileSettings, 5337)             \
 	X(XUserReadProfileSettingsByXuid, 5339)        \
-	X(XUserEstimateRankForRating, 5346)            \
 	X(XLiveProtectedCreateFile, 5348)              \
 	X(XLiveProtectedVerifyFile, 5349)              \
 	X(XLiveContentCreateAccessHandle, 5350)        \

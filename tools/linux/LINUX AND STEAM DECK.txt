@@ -1,0 +1,54 @@
+LP2 Netplay on Linux and Steam Deck
+===================================
+
+Lost Planet 2 has no Linux version: Steam runs the Windows game through Proton. Proton loads the game folder's
+xlive.dll, so LP2 Netplay works the same way as on Windows, and Linux, Steam Deck and Windows players can play
+together. This folder installs it with a small script instead of the Windows installer.
+Works with Steam on Steam Deck / SteamOS, Bazzite and other distros, Flatpak Steam and Snap Steam, with the game
+on internal storage, an SD card or another drive.
+
+Install
+-------
+1. Start Lost Planet 2 once from Steam and quit it, so Steam has set the game up.
+   Steam Deck: then hold the power button > Switch to Desktop.
+2. Unpack the download (right-click > Extract here).
+3. Double-click "Install LP2 Netplay.sh" in this linux folder and choose Execute / Run if asked.
+   A window shows what it found; click Yes to install.
+   If double-clicking opens a text editor instead: right-click an empty spot in the folder > Open Terminal Here
+   (F4 in the Steam Deck file manager), type   bash "Install LP2 Netplay.sh"   and press Enter.
+   (On the Steam Deck the on-screen keyboard is Steam button + X.)
+4. Start Lost Planet 2 from Steam as usual (Steam Deck: back to Gaming Mode first).
+
+The installer keeps Capcom's file as xlive_capcom.dll and refuses to touch any other xlive.dll. Run it again
+after downloading a newer LP2 Netplay to update.
+
+If the game folder has no lp2net.log after you played, Proton did not load LP2 Netplay. Then add this in
+Steam > Lost Planet 2 > Properties (gear icon) > General > Launch Options:
+    WINEDLLOVERRIDES="xlive=n,b" %command%
+If the game itself does not start: Properties > Compatibility > "Force the use of a specific Steam Play
+compatibility tool" > Proton Experimental (or the newest Proton).
+
+Play
+----
+The same as on Windows (HOW TO TEST.txt in the download has the details):
+  Same network (System Link): Campaign > Connection Type: System Link > Create Game / Quick Match.
+  Versus: Online > System Link > Create Match / Quick Match.
+  Over the internet: Online > Player Match > Custom Match > Search, or a Steam invite / Join Game.
+Your Steam name is your name in game.
+
+The LP2 Netplay overlay (games found, friends playing, settings) opens with the Home key, or by holding Back on
+a controller for about a second (on the Steam Deck: the View button, two squares, left of the screen).
+
+If something goes wrong
+-----------------------
+Send lp2net.log from the game folder. In Steam: Lost Planet 2 > Properties > Installed Files > Browse.
+Usually:
+  Steam Deck and most distros   ~/.local/share/Steam/steamapps/common/Lost Planet 2/
+  Flatpak Steam                 ~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Lost Planet 2/
+  SD card / other drive         <that drive>/steamapps/common/Lost Planet 2/
+(Folders starting with a dot are hidden: turn on "Show Hidden Files" in the file manager's menu.)
+
+Uninstall
+---------
+Double-click "Uninstall LP2 Netplay.sh" (or run   bash "Uninstall LP2 Netplay.sh"   in a terminal).
+Steam's "Verify integrity of game files" also restores Capcom's file. Remove the launch option if you added it.

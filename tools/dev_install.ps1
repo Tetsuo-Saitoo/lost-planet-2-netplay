@@ -1,4 +1,4 @@
-# Developer install of build\xlive.dll into the Lost Planet 2 folder (the end-user installer comes later).
+# Developer install of build\xlive.dll into the Lost Planet 2 folder (players use LP2NetSetup.exe).
 #   dev_install.ps1            install / update
 #   dev_install.ps1 -Uninstall restore Capcom's stub
 param([switch]$Uninstall, [string]$GameDir)

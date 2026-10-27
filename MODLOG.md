@@ -200,6 +200,61 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   checks firewall), Install / Uninstall / "Allow through firewall" .bat files, HOW TO TEST.txt.
 - Tested on this PC: uninstall restores Capcom's exact file; install keeps it as xlive_capcom.dll.
 
+## Installer, CI and releases (phase 3)
+- One version number: `project(lp2net VERSION 0.2.0)` -> `build\generated\lp2net_version.h` (from
+  `src/version.h.in`) -> the VERSIONINFO of xlive.dll and LP2NetSetup.exe (`src/versioninfo.rc`, ProductName
+  "LP2 Netplay"), the first log line (`LP2Net 0.2.0 (<date> <time>) in <dir>`), the overlay title (ImGui ID kept as
+  `###LP2 Netplay`; there is no imgui.ini, so nothing moves) and the package name.
+- LP2NetSetup.exe (`src/setup/`): Win32 dialog, static CRT, imports only Windows DLLs, ~3.5 MB with xlive.dll as
+  RCDATA (`build\generated\payload.rc`). CMake: OBJECT_DEPENDS takes no `$<TARGET_FILE>`, and a GENERATED source is
+  deleted by `--clean-first`, so payload.rc is written at configure time with the plain path `build\xlive.dll`
+  (single-config Ninja only). RC sources get COMPILE_OPTIONS too: xlive's `/W4 /utf-8` are now CXX-only.
+  - Manifest: asInvoker (without it, "Setup" in the file name triggers Windows' installer detection and a UAC
+    prompt), Common Controls 6, PerMonitorV2.
+  - Finds the game like install.ps1: `HKLM\SOFTWARE\Capcom\LostPlanet 2` installdir (32-bit view), else every
+    Steam library in libraryfolders.vdf.
+  - Tells files apart: Capcom's stub by SHA-256; ours by ProductName, or for builds before 0.2.0 (no version
+    resource) by the UTF-16 strings `xlive_capcom.dll` and `lp2net.ini` (both v0.1.0 builds on this PC match).
+    Anything else is refused and left alone. A locked xlive.dll is refused with "in use", not "unknown file".
+  - Install: Capcom's stub -> xlive_capcom.dll (only when there is none yet), then ours via `xlive.dll.lp2new`,
+    hash check, MoveFileEx(REPLACE_EXISTING), hash check; a failure leaves the old file (and moves the stub back if
+    it had just been moved). Steam putting the stub back after an update (xlive.dll = xlive_capcom.dll = Capcom's)
+    is "not active" -> Install. Refused: unknown xlive.dll, xlive_capcom.dll that is not Capcom's, ours without
+    Capcom's stub (-> Steam verify), game or launcher running from that folder.
+  - Uninstall: xlive_capcom.dll back over xlive.dll; a duplicate Capcom copy is deleted; settings and log stay.
+  - Settings: `[Player] Name` (same rule as config.cpp), `[Network] Peers` (letters, digits, `.:,;_-[]` and
+    spaces), `[Debug] AllowMultipleCopies=0` (as install.ps1). From the command line only the given ones change.
+  - GFWL leftovers (opt-in): `gfwlivesetup.exe`, `xliveredist.msi`, `wllogin_32/64.msi`, `*.exe.cat`,
+    `*.exe.cfg` in the game folder root, matched by name suffix (FindFirstFile's 8.3 matching would let `*.exe.cfg`
+    catch `x.exe.cfgbak`). Listed in the window before anything moves; moved (same drive, so nothing is copied or
+    deleted) to `<game>\LP2Netplay-backup\`; Uninstall moves them back, dropping backup copies that Steam has
+    already replaced with identical files. Steam's install script for 45750 runs `%INSTALLDIR%\gwfwlsetup.exe /q`,
+    a misspelling, so Steam never ran gfwlivesetup.exe anyway; neither stub nor ours reads the .cat/.cfg files.
+    Steam "verify" downloads moved files again (~260 MB).
+  - Firewall: status via INetFwPolicy2 (readable without admin, not tied to netsh's English output). The button
+    starts `LP2NetSetup.exe --firewall --game-dir <dir>` through ShellExecute "runas" (UAC): it disables enabled
+    inbound block rules for LP2DX9/LP2DX11.exe and adds "Lost Planet 2 (LP2 Netplay) <exe>" (inbound UDP, private
+    and public; the names install.ps1 uses). Never automatic; `--firewall --dry-run` only prints the plan.
+  - Command line (`--help`): `--status`, `--install`/`--repair [--name N] [--peer A] [--cleanup]`, `--uninstall`,
+    `--firewall [--dry-run]`, `--game-dir DIR`. Output goes to the stdout the caller provides; exit 0/1/2.
+- `tests\setup_test.ps1`: 57 checks against fake game folders in %TEMP% (copy of Capcom's stub + dummy files),
+  including the old-build update (`-OldBuild`), locked files and a fake running game (a copy of ping.exe named
+  LP2DX9.exe). The window was also driven on a fake folder (WM_COMMAND clicks, PrintWindow captures): Install with
+  the backup ticked, Uninstall, result boxes.
+- Real game folder (2026-10-27, under the test-bed lock, command line): `--status` recognised the installed v0.1
+  build as "LP2 Netplay (test build)" and read the firewall as allowing the game; `--uninstall` put Capcom's stub
+  back; `--install --cleanup` kept the stub, wrote ours (same bytes as build\xlive.dll) and moved the 5 GFWL files
+  (rename on the same drive: 121 ms for 259 MB); `--uninstall` put everything back. Every file hash in the game
+  folder matched the state before the test, and Release restored the known-good build. While the game ran, Setup
+  reported it and refused to touch anything.
+- Package (`tools\make_package.ps1`): `dist\LP2Netplay-<version>.zip` with LP2NetSetup.exe, HOW TO TEST.txt,
+  VERSION.txt (commit, SHA-256s) and the old script installer in `manual\` (fallback if the exe is blocked).
+- CI (`.github/workflows/build.yml`): windows-latest, `tools\build.bat` (falls back to vswhere when the Build Tools
+  path is missing), package, artifact; on `v*` tags a check that the tag matches project(VERSION), then a draft
+  release (GITHUB_TOKEN, `gh release create`, pre-release when the tag has a suffix). Actions pinned to commit
+  SHAs: checkout v7.0.1, upload-artifact v7.0.2, download-artifact v8.0.2. `.gitattributes` keeps .bat/.ps1/.txt
+  CRLF on the runner. The workflow has not run yet (needs a push).
+
 ## Multi-copy testing ([Debug] AllowMultipleCopies=1, off by default)
 - Single-instance check: CreateMutexA(NULL, TRUE, "sPlanetMain") + FindWindowW -> hooked via the game's IAT.
 - Keyboard reaches every copy (DirectInput background mode + GetAsyncKeyState) -> background copies get zeroed
@@ -304,6 +359,81 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   caller read `now` (this erased a peer's entry the moment it was added). xhv.cpp uses Age(t, now).
 - Steam's GetVoice data is only decodable as a whole call's output; never split it across packets.
 
+## Phase 1: hardening (2026-10-27)
+- FIXED: two PCs on one home network that met through Steam (Player Match search, lobby data) talked over the
+  Steam relay only. `UseDirect` refused plain UDP for any peer with a Steam id until a UDP packet had arrived from
+  them, and the other side did the same, so UDP never started. The relay carried a real Player Match for 5.5 min,
+  then the game dropped the other player ("norecv timeout (20sec)", error 0x80030035) and the relay to them kept
+  failing (P2PSessionConnectFail error 4) afterwards.
+  Now: UDP is always tried when we have an address (from their packets, or a guess from their XNADDR: same public
+  address = same LAN). The relay carries a copy until UDP is proven both ways: core traffic until they answer a UDP
+  hello over UDP (`lastDirectAck`, hellos every 3 s for Steam peers, 10 s window), game traffic until their hello
+  reports that our game packets reach them over UDP (`hearYourGame`, new optional field at the end of HelloBody;
+  older builds without it get the core rule). A relayed game frame is dropped when that peer's UDP game packets
+  arrived within 1.5 s (the game already has it). Hellos and beacons stop 2 min after a peer goes silent.
+  The report is sticky: it turns yes when their game packets arrive over UDP and no only when they arrive through
+  Steam alone; a quiet lobby keeps the last answer (a plain 10 s freshness flipped it to "no" in every idle lobby).
+- Steam Join Game on a friend who hosts a System Link game still asks the player to open the menu themselves (the
+  game only accepts LIVE-style invites). In a real test that prompt ("open System Link (or Campaign)") sent the
+  player into the wrong menus. Hosts now put their RICH_MODE in the lobby data ("mode"), and the prompt names the
+  path: Campaign host -> "open Campaign, set Connection Type to System Link, then pick Quick Match"; Versus host ->
+  "open Online > System Link, then pick Quick Match". Older hosts get the old text. The log line carries flags and
+  mode.
+- VERIFIED (two copies on one PC): Online > Ranked Match > Quick Match on one copy creates a ranked lobby
+  (flags 0x43F, arbitration); Quick Match on the other finds and joins it; the countdown starts with 2 players;
+  ArbitrateNonce/ArbitrateResult between the copies, XSessionArbitrationRegister as host and peer, XSessionStart,
+  Elimination battle. The new UDP report works ("our game packets now reach them over UDP"). A full ranked battle
+  ran 10 min with both players idle (no inactivity kick, no drop), ended with TerminateSession, and the profile got
+  ranked points (210 pts). A second ranked battle (Team Elimination, both copies idle) lost the client 4.4 min in:
+  it sent close-leave on its own with no xlive call or network error before it, the host then dropped it ("Improve
+  TrueSkill score of dropped user") and deleted the session. Same signature as the idle Player Match earlier; it
+  did not happen in the 10-minute Elimination battle. Most likely the game's own handling of a player who never
+  moves; check with real players before treating it as a bug (the real two-PC drop was a different thing: a
+  20 s receive timeout, fixed above).
+- VERIFIED (two copies): Online > System Link > Create Match (Data Post Battle) on one copy; System Link > Quick
+  Match on the other finds it (Search / SearchAns), joins (2/16), host Begin the match -> both in the battle on
+  opposite teams.
+- Ranked Match end: the game asks XUserEstimateRankForRating (#5346) where the new rating ranks. Capcom's stub
+  returned 0 without completing, logged by the game as "XUserEstimateRankForRating(1) failed". Now ours (xstats.cpp):
+  completes asynchronously with rank 1 for every rating (no shared leaderboard yet). Not seen in game yet: the
+  second ranked test (Team Elimination) ended before the time limit (below). GOTCHA: LP2 builds the rank
+  requests as 12-byte records (DWORD view id + LONGLONG rating, no padding), unlike every other GFWL struct;
+  results buffer = 8 + 4 per rating.
+- Log: friends' Steam lobbies are re-read every 15 s; their "lobby ... data" line is now only logged when the
+  lobby is new or its data changed.
+- Achievements: LP2 on Steam has no Steam achievements (no steam_api.dll, no stats schema for 45750); Capcom's stub
+  answers XUserWriteAchievements with 0 and XUserCreateAchievementEnumerator with an error, so unlocks go nowhere
+  since 2025. Candidate for phase 4: keep them locally and show them in the overlay.
+- DLC: Capcom's XLiveContentCreateEnumerator returns an error, so the game sees no DLC. Every player is on the same
+  content: nothing to match up in lobbies.
+- Still forwarded to Capcom's stub and called: XHVCreateEngine and XUserMuteListQuery (phase 2), protected data /
+  profile settings (local, fine), the content enumerator (above). Stats enumerators (5284/5286) are phase 4.
+
+## Linux and Steam Deck (phase 7; not tried on real hardware yet)
+- LP2 has no Linux build: Steam runs it through Proton, which loads the game folder's xlive.dll as a native DLL
+  (Wine has no builtin xlive), so the Windows build is the Linux build and the players share one network.
+- `tools/linux/"Install LP2 Netplay.sh"` (+ "Uninstall LP2 Netplay.sh", "LINUX AND STEAM DECK.txt"):
+  - finds the game in native Steam (`~/.local/share/Steam`, `~/.steam/steam|root`: Steam Deck, SteamOS, Bazzite,
+    most distros), Flatpak (`~/.var/app/com.valvesoftware.Steam/...`) and Snap Steam, and every library in their
+    libraryfolders.vdf (SD cards, other drives); `LP2_GAME_DIR` overrides;
+  - keeps Capcom's stub by SHA-256 like the Windows installers, refuses anything else, uninstall puts it back;
+  - double-clicked (no terminal) it talks through kdialog (KDE, Steam Deck) or zenity (GNOME) and asks before
+    changing anything; with neither it reopens itself in a terminal window; from a terminal it just prints;
+  - it does not set the launch option `WINEDLLOVERRIDES="xlive=n,b" %command%`; the text says to add it only if
+    no lp2net.log appears (Steam's localconfig.vdf is rewritten by a running Steam).
+- Packaging: make_package.ps1 adds `linux\` to the zip; `tools/pack_dist.py` (Python, stdlib only) writes the zip
+  and `LP2Netplay-<version>-linux.tar.gz` with Unix permissions (0755 for *.sh) so the scripts stay executable and
+  double-clickable after unpacking. CI runs `tests/linux_install_test.sh` (41 checks: Deck + SD card, Flatpak,
+  Snap, update, uninstall byte-identical, refusals, kdialog / zenity dialog paths with stubs) with a stand-in
+  for Capcom's file; one check ties the script's Capcom SHA-256 to the Windows installer's. `.gitattributes`
+  keeps `*.sh` LF.
+- GOTCHA (found by the first CI run): GNU `sha256sum FILE` puts a `\` before the hash when the path contains a
+  backslash (the Windows runner's temp folder), so `| cut -d' ' -f1` no longer matches. Hash from stdin
+  (`sha256sum < FILE`), in the installer and the tests.
+- Unknowns until real hardware runs it: whether Proton's lsteamclient answers our SteamClient020 interfaces
+  (without it the Steam features stay off and System Link still works), UPnP under Wine (expected to fail
+  quietly), the overlay on the Deck's controls (hold View) and screen.
+
 ## Gotchas
 1. SteamStub: run the exe with SteamAppId/SteamGameId=45750 set (as Steam does); without it, it exits code 53
    after ~16 s. Code is decrypted ~1.2 s after start (used once to make analysis-only copies; never shipped).
@@ -317,10 +447,5 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
    Steam shortcut and the game windows stay masked. Window drags that end over desktop icons are refused.
 
 ## Next
-1. Internet via Join by IP (host = user's PC; guest enters its public IP). Versus System Link not tried yet.
-   Overlay contents in game not checked yet.
-2. Installer (LP2NetSetup.exe): install/repair/uninstall, keep Capcom stub, remove GFWL leftovers
-   (gfwlivesetup.exe, *.exe.cat, *.exe.cfg) with optional backup, firewall rules, Steam-verify repair.
-3. Native menus: finish the OnlineSignIn path (local per-user storage, Player Match error) so the game's own
-   Online menus and the Xbox LIVE connection type work; back them with Steam (see Steamworks above).
-4. Optional lobby server for internet session listing + hole punching.
+See `ROADMAP.md`: phases 1-3 (hardening, voice chat, installer + CI) run in parallel, then stats and
+leaderboards, an optional lobby server, and 1.0.
