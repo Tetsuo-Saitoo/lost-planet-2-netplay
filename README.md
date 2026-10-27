@@ -86,7 +86,7 @@ Needs Visual Studio 2022 Build Tools (C++ workload). Clone with the Dear ImGui s
 terminal:
 
 ```
-git clone --recursive https://github.com/saitotetsuo-coder/lost-planet-2-netplay.git
+git clone --recursive https://github.com/Tetsuo-Saitoo/lost-planet-2-netplay.git
 cd lost-planet-2-netplay
 tools\build.bat
 ```
