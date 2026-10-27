@@ -131,7 +131,7 @@ fi
 if [ ! -f "$capcom" ]; then
     [ -f "$xlive" ] || fail "The game has no xlive.dll. In Steam: Lost Planet 2 > Properties > Installed Files >
 Verify integrity of game files, then run this again."
-    sha="$(sha256sum "$xlive" | cut -d' ' -f1)"
+    sha="$(sha256sum < "$xlive" | cut -d' ' -f1)"  # from stdin: no "\" prefix for paths with a backslash
     [ "$sha" = "$CAPCOM_SHA" ] || fail "The game's xlive.dll is not the version LP2 Netplay was made for
 (sha256 $sha). Let Steam update the game (or verify its files) and run this again."
     action="Install"

@@ -330,6 +330,9 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   Snap, update, uninstall byte-identical, refusals, kdialog / zenity dialog paths with stubs) with a stand-in
   for Capcom's file; one check ties the script's Capcom SHA-256 to the Windows installer's. `.gitattributes`
   keeps `*.sh` LF.
+- GOTCHA (found by the first CI run): GNU `sha256sum FILE` puts a `\` before the hash when the path contains a
+  backslash (the Windows runner's temp folder), so `| cut -d' ' -f1` no longer matches. Hash from stdin
+  (`sha256sum < FILE`), in the installer and the tests.
 - Unknowns until real hardware runs it: whether Proton's lsteamclient answers our SteamClient020 interfaces
   (without it the Steam features stay off and System Link still works), UPnP under Wine (expected to fail
   quietly), the overlay on the Deck's controls (hold View) and screen.

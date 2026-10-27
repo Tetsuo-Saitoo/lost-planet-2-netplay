@@ -22,7 +22,8 @@ check() {
         echo "FAIL: $1"
     fi
 }
-sha() { sha256sum "$1" | cut -d' ' -f1; }
+# From stdin: for a path with a backslash (Windows runner temp folders) sha256sum puts "\" before the hash.
+sha() { sha256sum < "$1" | cut -d' ' -f1; }
 
 pkg="$work/pkg"
 mkdir -p "$pkg"
