@@ -241,6 +241,12 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   including the old-build update (`-OldBuild`), locked files and a fake running game (a copy of ping.exe named
   LP2DX9.exe). The window was also driven on a fake folder (WM_COMMAND clicks, PrintWindow captures): Install with
   the backup ticked, Uninstall, result boxes.
+- Real game folder (2026-10-27, under the test-bed lock, command line): `--status` recognised the installed v0.1
+  build as "LP2 Netplay (test build)" and read the firewall as allowing the game; `--uninstall` put Capcom's stub
+  back; `--install --cleanup` kept the stub, wrote ours (same bytes as build\xlive.dll) and moved the 5 GFWL files
+  (rename on the same drive: 121 ms for 259 MB); `--uninstall` put everything back. Every file hash in the game
+  folder matched the state before the test, and Release restored the known-good build. While the game ran, Setup
+  reported it and refused to touch anything.
 - Package (`tools\make_package.ps1`): `dist\LP2Netplay-<version>.zip` with LP2NetSetup.exe, HOW TO TEST.txt,
   VERSION.txt (commit, SHA-256s) and the old script installer in `manual\` (fallback if the exe is blocked).
 - CI (`.github/workflows/build.yml`): windows-latest, `tools\build.bat` (falls back to vswhere when the Build Tools
