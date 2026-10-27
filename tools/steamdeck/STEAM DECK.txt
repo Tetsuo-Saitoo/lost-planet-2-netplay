@@ -1,0 +1,47 @@
+LP2 Netplay - Steam Deck test build
+===================================
+
+Lost Planet 2 runs on the Steam Deck through Proton, Valve's Windows layer, so it uses the same xlive.dll as on a
+PC. This package installs it with a small script instead of the Windows installer. It has NOT been tried on a
+Deck yet: please send the log afterwards (see the end).
+
+Install (once, in Desktop Mode)
+-------------------------------
+1. Start Lost Planet 2 once from Gaming Mode and quit it, so Steam has set the game up.
+2. Hold the power button > Switch to Desktop.
+3. Download the zip, open your Downloads folder, right-click the zip > Extract > Extract archive here.
+4. Open the extracted folder, right-click an empty spot > Open Terminal Here (or press F4 in the file manager).
+5. Type this and press Enter (the on-screen keyboard: Steam button + X):
+       bash install-steamdeck.sh
+   It finds the game (internal storage or SD card), keeps Capcom's file as xlive_capcom.dll and installs
+   LP2 Netplay. It refuses to touch any other xlive.dll.
+6. In Steam: Lost Planet 2 > Properties (gear icon) > General > Launch Options, enter:
+       WINEDLLOVERRIDES="xlive=n,b" %command%
+   This makes sure Proton uses LP2 Netplay's file.
+7. Switch back to Gaming Mode and start the game.
+
+If the game does not start: Properties > Compatibility > tick "Force the use of a specific Steam Play
+compatibility tool" and pick Proton Experimental (or the newest Proton).
+
+Play
+----
+Everything works as on the PCs:
+  Same Wi-Fi (System Link): Campaign > Connection Type: System Link > Quick Match (or Create Game).
+  Versus: Online > System Link > Create Match / Quick Match.
+  Over the internet: Online > Player Match > Custom Match > Search, or accept a Steam invite / use Join Game
+  in the Steam friends list.
+Your Steam name is your name in game.
+
+The LP2 Netplay overlay (games found, friends playing, settings) opens by holding the View button (the one with
+two squares, left of the screen) for about a second. B closes it. This has not been tried on a Deck yet.
+
+If something goes wrong
+-----------------------
+Send this file (Desktop Mode, in the file manager; turn on "Show Hidden Files" in the menu to see .local):
+  /home/deck/.local/share/Steam/steamapps/common/Lost Planet 2/lp2net.log
+If the game is on the SD card, it is in that card's steamapps/common/Lost Planet 2 folder instead.
+
+Uninstall
+---------
+In the same terminal:   bash uninstall-steamdeck.sh
+(Steam's "Verify integrity of game files" also restores the original.) Remove the launch option too.

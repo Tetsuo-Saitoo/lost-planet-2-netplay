@@ -257,6 +257,17 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
 - Still forwarded to Capcom's stub and called: XHVCreateEngine and XUserMuteListQuery (phase 2), protected data /
   profile settings (local, fine), the content enumerator (above). Stats enumerators (5284/5286) are phase 4.
 
+## Steam Deck (test package, not tried on a Deck yet)
+- LP2 runs on the Deck through Proton, which loads the game folder's xlive.dll as a native DLL, so the Windows build
+  is the Deck build. `tools/steamdeck/`: `install-steamdeck.sh` finds the game through Steam's libraryfolders.vdf
+  (internal storage or SD card), keeps Capcom's stub by SHA-256 like the Windows installer, `--uninstall` puts it
+  back; `STEAM DECK.txt` has the Desktop Mode steps and the launch option `WINEDLLOVERRIDES="xlive=n,b" %command%`.
+  Tested on a fake library in Git Bash (install, update, uninstall byte-identical, foreign DLL refused, game not
+  found). `.gitattributes` keeps `*.sh` LF.
+- Unknowns until a Deck runs it: whether Proton's lsteamclient answers our SteamClient020 interfaces (without it
+  the Steam features stay off and System Link still works), UPnP under Wine (expected to fail quietly), and the
+  overlay on the Deck's controls (hold View).
+
 ## Gotchas
 1. SteamStub: run the exe with SteamAppId/SteamGameId=45750 set (as Steam does); without it, it exits code 53
    after ~16 s. Code is decrypted ~1.2 s after start (used once to make analysis-only copies; never shipped).

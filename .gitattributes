@@ -1,0 +1,7 @@
+# Windows files get CRLF in every checkout, CI runners included (cmd.exe misreads LF-only batch files, and the
+# player package ships the .bat and .txt files as checked out).
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.txt text eol=crlf
+# Shell scripts run on Steam Deck / Linux: bash fails on CRLF.
+*.sh text eol=lf
