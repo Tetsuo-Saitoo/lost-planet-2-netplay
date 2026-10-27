@@ -125,6 +125,7 @@ void LoadConfig() {
 	c.voiceFeedWav = ReadStr(L"Debug", L"VoiceFeedWav", "");
 	c.voiceFeedCopy = GetPrivateProfileIntW(L"Debug", L"VoiceFeedCopy", 0, g_ini.c_str());
 	c.voiceDumpWav = ReadStr(L"Debug", L"VoiceDumpWav", "");
+	c.voiceProbe = ReadBool(L"Debug", L"VoiceProbe", false);
 	SaveConfig();  // writes defaults and the generated XUID back so the file documents itself
 }
 
@@ -167,6 +168,7 @@ void SaveConfig() {
 	WriteStr(L"Debug", L"VoiceFeedWav", c.voiceFeedWav);
 	WriteStr(L"Debug", L"VoiceFeedCopy", std::to_string(c.voiceFeedCopy));
 	WriteStr(L"Debug", L"VoiceDumpWav", c.voiceDumpWav);
+	WriteStr(L"Debug", L"VoiceProbe", c.voiceProbe ? "1" : "0");
 }
 
 }  // namespace lp2net

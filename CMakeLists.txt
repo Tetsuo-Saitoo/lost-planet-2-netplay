@@ -45,6 +45,7 @@ add_library(xlive SHARED
 	src/xlive/steam.cpp
 	src/xlive/matchmaking.cpp
 	src/xlive/xhv.cpp
+	src/xlive/probe.cpp
 	src/xlive/exports.def)
 target_compile_definitions(xlive PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _WINSOCK_DEPRECATED_NO_WARNINGS
 	_CRT_SECURE_NO_WARNINGS)

@@ -45,6 +45,7 @@ struct Config {
 	std::string voiceFeedWav;  // play this WAV file into voice chat instead of the microphone (loops)
 	int voiceFeedCopy = 0;     // only copy N on this PC uses the feed (0 = every copy)
 	std::string voiceDumpWav;  // write what voice chat plays to this WAV file (copy N > 1 adds "-copyN")
+	bool voiceProbe = false;   // log players, soldiers and cameras found in memory (proximity voice research)
 };
 
 Config& Cfg();

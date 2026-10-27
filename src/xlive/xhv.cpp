@@ -35,6 +35,8 @@
 
 namespace lp2net {
 void EnsureInit();
+void ProbeStart();  // probe.cpp
+void ProbeStop();
 
 namespace {
 // ---- GFWL definitions (xhv2.h) -----------------------------------------------------------------------------------
@@ -1294,6 +1296,7 @@ void VoiceSetMicTest(bool on) {
 }
 
 void VoiceShutdown() {
+	ProbeStop();
 	StopThread();
 }
 
@@ -1324,6 +1327,7 @@ extern "C" HRESULT WINAPI XHVCreateEngine(const XHV_INIT_PARAMS* pParams, HANDLE
 	}
 	UpdateHaveMic();
 	StartThread();
+	ProbeStart();
 	*ppEngine = &g_engine;
 	return S_OK;
 }
