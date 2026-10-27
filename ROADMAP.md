@@ -10,7 +10,7 @@ the others wait for the phase they depend on.
 | 1 | Hardening from real play (v0.2) | - |
 | 2 | Voice chat | - |
 | 3 | Installer, CI builds and releases | - |
-| 4 | Stats and leaderboards | 1 |
+| 4 | Stats, leaderboards and achievements | 1 |
 | 5 | Internet play without Steam (optional) | 1 |
 | 6 | 1.0: integration test with real players, docs, release | 1-4 |
 
@@ -34,9 +34,11 @@ the others wait for the phase they depend on.
 - One version number (CMake) in the DLL's version resource, the log and the overlay.
 - GitHub Actions: build on every push, a draft release with the zip on every tag.
 
-## Phase 4: stats and leaderboards
+## Phase 4: stats, leaderboards and achievements
 - XUserWriteStats / XSessionWriteStats kept locally and shared with peers, so the game's player stats and
   leaderboards show you and the people you play with.
+- Achievements: LP2 on Steam has none, and Capcom's stub drops the game's unlocks. Keep them locally (names from
+  the game's SPA) and show them in the overlay.
 
 ## Phase 5: internet without Steam (optional)
 - A small lobby server for session listing and UDP hole punching, for players who don't run Steam.

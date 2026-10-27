@@ -37,8 +37,12 @@ struct Peer {
 	int pingMs = -1;
 	bool fromManual = false;
 	uint64_t steamId = 0;      // known when they run Steam: lets us reach them through the Steam relay
-	ULONGLONG lastDirect = 0;  // last packet over plain UDP
-	ULONGLONG lastRelay = 0;   // last packet through Steam
+	ULONGLONG lastDirect = 0;      // last packet over plain UDP
+	ULONGLONG lastDirectGame = 0;  // last game packet over plain UDP
+	ULONGLONG lastDirectAck = 0;   // last HelloAck over plain UDP: they hear us directly too
+	ULONGLONG lastRelay = 0;       // last packet through Steam
+	bool reportsGame = false;      // their hellos say whether our game packets reach them over UDP (0.2+)
+	bool hearOurGame = false;      // ...and the last one said yes
 };
 
 struct ManualPeer {
@@ -102,7 +106,12 @@ uint32_t g_qosSeq = 0;
 SOCKET g_inject = INVALID_SOCKET;
 uint16_t g_injectPort = 0;
 ULONGLONG g_lobbyStamp = 0, g_lastFriendScan = 0;
-constexpr ULONGLONG kDirectFresh = 20000;  // a peer heard over UDP this recently is reached directly
+// A peer that answered our UDP hello this recently is reached over UDP only. Steam peers get a hello every
+// kSteamHelloMs, so a broken UDP path falls back to the relay well inside the game's 20 s receive timeout.
+constexpr ULONGLONG kDirectFresh = 10000;
+constexpr ULONGLONG kSteamHelloMs = 3000;
+constexpr ULONGLONG kRelayDuplicateMs = 1500;  // their UDP packets arrived this recently: drop relayed copies
+constexpr ULONGLONG kPeerGoneMs = 120000;      // stop saying hello to peers silent this long
 
 ULONGLONG KidKey(const XNKID* k) {
 	ULONGLONG v;
@@ -195,6 +204,7 @@ struct HelloBody {
 	XNADDR xnaddr;
 	sockaddr_in yourAddr;  // in acks: where the sender saw this packet come from (lets peers learn their WAN IP)
 	uint64_t steamId;      // added later: older builds send the body without it
+	uint8_t hearYourGame;  // added in 0.2: your game packets reached me over UDP lately (absent in older builds)
 };
 constexpr int kHelloBodyV1 = (int)offsetof(HelloBody, steamId);
 struct QosBody {
@@ -254,15 +264,30 @@ std::vector<sockaddr_in> CoreTargets() {
 
 // ---- Steam relay -------------------------------------------------------------------------------------------------
 // Relay frame: [uint16 destination game port, 0 = core socket][PacketHeader][payload].
-bool UseDirect(const Peer& p, ULONGLONG now) {
-	return !p.steamId || !SteamReady() || !Cfg().steamRelay || (p.lastDirect && now - p.lastDirect < kDirectFresh);
+// Plain UDP whenever we have an address for them: it costs nothing, it opens the NAT on our side, and it is the
+// only way to learn that UDP works. (Sending through Steam alone kept two PCs on one LAN on the relay for good.)
+bool UseDirect(const Peer& p, ULONGLONG) {
+	return p.addr.s_addr != 0;
 }
 
-bool UseRelay(const Peer& p, ULONGLONG now) {
-	// Without recent UDP traffic both paths are tried; once UDP works the relay goes quiet again. Never to our own
-	// Steam account (several copies on one PC share it, and Steam would hand the packet to any of them).
-	return p.steamId && p.steamId != SteamMyId() && SteamReady() && Cfg().steamRelay &&
-	       !(p.lastDirect && now - p.lastDirect < kDirectFresh);
+bool UseRelay(const Peer& p, ULONGLONG now, bool game) {
+	// Until they have answered a UDP hello over UDP, the relay carries a copy as well; game packets also until the
+	// peer reports that they arrive over UDP (their game ports may not be open when the core port is). Never to our
+	// own Steam account (several copies on one PC share it, and Steam would hand the packet to any of them).
+	if (!p.steamId || p.steamId == SteamMyId() || !SteamReady() || !Cfg().steamRelay) {
+		return false;
+	}
+	bool udpWorks = p.lastDirectAck && now - p.lastDirectAck < kDirectFresh;
+	if (game && p.reportsGame) {
+		udpWorks = udpWorks && p.hearOurGame;
+	}
+	return !udpWorks;
+}
+
+// Best UDP address for a peer we only know from their XNADDR: same public address (or none known) = same LAN.
+IN_ADDR GuessAddr(const XNADDR& x) {
+	bool sameSite = x.inaOnline.s_addr == g_me.wan.s_addr || x.inaOnline.s_addr == x.ina.s_addr;
+	return sameSite ? x.ina : x.inaOnline;
 }
 
 bool RelayFrame(uint64_t steamId, uint16_t dstPort, const PacketHeader& h, const void* body, size_t cb) {
@@ -282,13 +307,13 @@ void SendCorePeer(const Peer& p, PacketType type, const void* body, size_t cb) {
 	if (UseDirect(p, now)) {
 		SendCore(PeerCore(p), type, body, cb);
 	}
-	if (UseRelay(p, now)) {
+	if (UseRelay(p, now, false)) {
 		PacketHeader h{kMagic, kVersion, type, g_me.instanceId, (uint16_t)(kCorePortBase), g_me.portOffset};
 		RelayFrame(p.steamId, 0, h, body, cb);
 	}
 }
 
-HelloBody MakeHello(const sockaddr_in* yourAddr) {
+HelloBody MakeHello(const sockaddr_in* yourAddr, const Peer* to = nullptr) {
 	HelloBody b{};
 	strncpy_s(b.name, g_me.name.c_str(), _TRUNCATE);
 	b.xnaddr = LocalXnAddr();
@@ -296,6 +321,7 @@ HelloBody MakeHello(const sockaddr_in* yourAddr) {
 		b.yourAddr = *yourAddr;
 	}
 	b.steamId = SteamMyId();
+	b.hearYourGame = to && to->lastDirectGame && GetTickCount64() - to->lastDirectGame < kDirectFresh;
 	return b;
 }
 
@@ -305,7 +331,7 @@ void SendHello(const sockaddr_in& to, PacketType type, const sockaddr_in* yourAd
 }
 
 void SendHelloPeer(Peer& p, PacketType type) {
-	HelloBody b = MakeHello(nullptr);
+	HelloBody b = MakeHello(nullptr, &p);
 	SendCorePeer(p, type, &b, sizeof(b));
 	p.lastHelloSent = GetTickCount64();
 	if (!p.firstHelloSent) {
@@ -429,6 +455,23 @@ void HandleCore(const sockaddr_in& from, const PacketHeader& h, const BYTE* body
 		if (b.steamId && !p.steamId) {
 			p.steamId = b.steamId;
 		}
+		if (!p.addr.s_addr) {
+			p.addr = GuessAddr(b.xnaddr);  // first heard through Steam: try UDP to where they say they are
+		}
+		if (h.type == PacketType::HelloAck && !relaySteamId) {
+			if (!p.lastDirectAck && p.lastRelay) {
+				LOG("peer %08X: UDP works, leaving the Steam relay", h.instanceId);
+			}
+			p.lastDirectAck = now;
+		}
+		if (cb >= (int)sizeof(HelloBody)) {
+			if (p.reportsGame && p.hearOurGame != (b.hearYourGame != 0)) {
+				LOG("peer %08X: our game packets %s them over UDP", h.instanceId,
+				    b.hearYourGame ? "now reach" : "no longer reach");
+			}
+			p.reportsGame = true;
+			p.hearOurGame = b.hearYourGame != 0;
+		}
 		for (auto& m : g_manual) {
 			if (m.resolved && !relaySteamId && m.core.sin_addr.s_addr == from.sin_addr.s_addr &&
 			    m.core.sin_port == from.sin_port) {
@@ -437,7 +480,7 @@ void HandleCore(const sockaddr_in& from, const PacketHeader& h, const BYTE* body
 			}
 		}
 		if (h.type == PacketType::Hello) {
-			HelloBody ack = MakeHello(relaySteamId ? nullptr : &from);
+			HelloBody ack = MakeHello(relaySteamId ? nullptr : &from, &p);
 			reply(PacketType::HelloAck, &ack, sizeof(ack));
 		}
 		else if (relaySteamId) {
@@ -601,7 +644,8 @@ void Tick() {
 		// peers we heard from, and Steam players we were introduced to but have not heard from yet
 		bool introduced = p.steamId && !p.lastHeard && p.lastHelloSent && now - p.lastHelloSent > 2000 &&
 		                  now - p.firstHelloSent < 30000;
-		if ((p.lastHeard && now - p.lastHelloSent > 10000) || introduced) {
+		bool alive = p.lastHeard && now - p.lastHeard < kPeerGoneMs;
+		if ((alive && now - p.lastHelloSent > (p.steamId ? kSteamHelloMs : 10000)) || introduced) {
 			SendHelloPeer(p, PacketType::Hello);
 		}
 	}
@@ -619,7 +663,7 @@ void Tick() {
 			}
 		}
 		for (const auto& [id, p] : g_peers) {
-			if (p.lastHeard) {
+			if (p.lastHeard && now - p.lastHeard < kPeerGoneMs) {
 				SendCorePeer(p, PacketType::SessionInfo, b.data(), b.size());
 			}
 		}
@@ -700,9 +744,13 @@ void OnRelayFrame(uint64_t from, const BYTE* data, uint32_t cb) {
 	{
 		std::lock_guard lock(g_mutex);
 		Peer& p = UpsertPeer(h.instanceId);
+		ULONGLONG now = GetTickCount64();
 		p.steamId = from;
-		p.lastRelay = GetTickCount64();
+		p.lastRelay = now;
 		p.offset = h.srcOffset;
+		if (p.lastDirectGame && now - p.lastDirectGame < kRelayDuplicateMs) {
+			return;  // their UDP packets reach us: this is the relay's copy of one the game already has
+		}
 	}
 	sockaddr_in to = MakeAddr(Ip(INADDR_LOOPBACK), RealGamePort(dstPort, g_me.portOffset));
 	sendto(g_inject, (const char*)data + 2, (int)(cb - 2), 0, (const sockaddr*)&to, sizeof(to));
@@ -891,9 +939,7 @@ bool XnAddrToVirtual(const XNADDR& x, IN_ADDR* out) {
 		}
 	}
 	if (!p.lastHeard) {
-		// Not heard from them directly yet: same public address (or no public address) means same LAN.
-		bool sameSite = x.inaOnline.s_addr == g_me.wan.s_addr || x.inaOnline.s_addr == x.ina.s_addr;
-		p.addr = sameSite ? x.ina : x.inaOnline;
+		p.addr = GuessAddr(x);  // not heard from them yet
 		SendHelloPeer(p, PacketType::Hello);
 	}
 	*out = p.vaddr;
@@ -962,7 +1008,7 @@ std::vector<SendTarget> ResolveSend(const sockaddr_in& dst, bool* isBroadcast) {
 			auto s = p.seen.find(port);
 			out.push_back({s != p.seen.end() ? s->second : MakeAddr(p.addr, RealGamePort(port, p.offset))});
 		}
-		if (UseRelay(p, now)) {
+		if (UseRelay(p, now, true)) {
 			out.push_back({dst, p.id});
 		}
 	};
@@ -990,7 +1036,7 @@ std::vector<SendTarget> ResolveSend(const sockaddr_in& dst, bool* isBroadcast) {
 					s != p.seen.end() ? add(s->second.sin_addr, ntohs(s->second.sin_port))
 					                  : add(p.addr, RealGamePort(port, p.offset));
 				}
-				if (UseRelay(p, now)) {
+				if (UseRelay(p, now, true)) {
 					out.push_back({dst, p.id});
 				}
 			}
@@ -1076,7 +1122,7 @@ bool AcceptIncoming(const sockaddr_in& realFrom, const PacketHeader& h, uint32_t
 		bool firstContact = p.seen.empty();
 		p.seen[h.srcPort] = realFrom;
 		p.addr = realFrom.sin_addr;
-		p.lastDirect = now;
+		p.lastDirect = p.lastDirectGame = now;
 		if (firstContact && !p.lastHelloSent) {
 			SendHelloPeer(p, PacketType::Hello);
 		}
@@ -1268,8 +1314,7 @@ void SessionFromSteamLobby(const LobbyEntry& lobby, bool joinNow) {
 			uint16_t offset;
 			memcpy(&offset, info.hostAddress.abEnet + 4, 2);
 			p.offset = offset;
-			bool sameSite = info.hostAddress.inaOnline.s_addr == g_me.wan.s_addr;
-			p.addr = sameSite ? info.hostAddress.ina : info.hostAddress.inaOnline;
+			p.addr = GuessAddr(info.hostAddress);
 		}
 		if (!p.lastHeard && (!p.lastHelloSent || GetTickCount64() - p.lastHelloSent > 2000)) {
 			SendHelloPeer(p, PacketType::Hello);
@@ -1353,8 +1398,8 @@ void RefreshSessions() {
 			SendCore(t, PacketType::SessionQuery, &now, sizeof(now));
 		}
 		for (const auto& [id, p] : g_peers) {
-			if (p.lastHeard && !UseDirect(p, now)) {
-				SendCorePeer(p, PacketType::SessionQuery, &now, sizeof(now));  // Steam-only peers
+			if (p.lastHeard && UseRelay(p, now, false)) {
+				SendCorePeer(p, PacketType::SessionQuery, &now, sizeof(now));  // UDP not confirmed: Steam too
 			}
 		}
 	}

@@ -207,6 +207,32 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
 - tools\run_two.ps1 starts both and lays them out; tools\focus_lp2.ps1 -Index N gives one the keyboard (Alt tap +
   SetForegroundWindow; clicking a game window does not reliably activate it).
 
+## Phase 1: hardening (2026-10-27)
+- FIXED: two PCs on one home network that met through Steam (Player Match search, lobby data) talked over the
+  Steam relay only. `UseDirect` refused plain UDP for any peer with a Steam id until a UDP packet had arrived from
+  them, and the other side did the same, so UDP never started. The relay carried a real Player Match for 5.5 min,
+  then the game dropped the other player ("norecv timeout (20sec)", error 0x80030035) and the relay to them kept
+  failing (P2PSessionConnectFail error 4) afterwards.
+  Now: UDP is always tried when we have an address (from their packets, or a guess from their XNADDR: same public
+  address = same LAN). The relay carries a copy until UDP is proven both ways: core traffic until they answer a UDP
+  hello over UDP (`lastDirectAck`, hellos every 3 s for Steam peers, 10 s window), game traffic until their hello
+  reports that our game packets reach them over UDP (`hearYourGame`, new optional field at the end of HelloBody;
+  older builds without it get the core rule). A relayed game frame is dropped when that peer's UDP game packets
+  arrived within 1.5 s (the game already has it). Hellos and beacons stop 2 min after a peer goes silent.
+- Steam Join Game on a friend who hosts a System Link game still asks the player to open System Link > Quick Match
+  (the game only accepts LIVE-style invites). The log line now carries the session flags.
+- VERIFIED (two copies on one PC): Online > Ranked Match > Quick Match on one copy creates a ranked lobby
+  (flags 0x43F, arbitration); Quick Match on the other finds and joins it; the countdown starts with 2 players;
+  ArbitrateNonce/ArbitrateResult between the copies, XSessionArbitrationRegister as host and peer, XSessionStart,
+  Elimination battle. The new UDP report works ("our game packets now reach them over UDP").
+- Achievements: LP2 on Steam has no Steam achievements (no steam_api.dll, no stats schema for 45750); Capcom's stub
+  answers XUserWriteAchievements with 0 and XUserCreateAchievementEnumerator with an error, so unlocks go nowhere
+  since 2025. Candidate for phase 4: keep them locally and show them in the overlay.
+- DLC: Capcom's XLiveContentCreateEnumerator returns an error, so the game sees no DLC. Every player is on the same
+  content: nothing to match up in lobbies.
+- Still forwarded to Capcom's stub and called: XHVCreateEngine and XUserMuteListQuery (phase 2), protected data /
+  profile settings (local, fine), the content enumerator (above). Stats enumerators (5284/5286) are phase 4.
+
 ## Gotchas
 1. SteamStub: run the exe with SteamAppId/SteamGameId=45750 set (as Steam does); without it, it exits code 53
    after ~16 s. Code is decrypted ~1.2 s after start (used once to make analysis-only copies; never shipped).
@@ -220,10 +246,5 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
    Steam shortcut and the game windows stay masked. Window drags that end over desktop icons are refused.
 
 ## Next
-1. Internet via Join by IP (host = user's PC; guest enters its public IP). Versus System Link not tried yet.
-   Overlay contents in game not checked yet.
-2. Installer (LP2NetSetup.exe): install/repair/uninstall, keep Capcom stub, remove GFWL leftovers
-   (gfwlivesetup.exe, *.exe.cat, *.exe.cfg) with optional backup, firewall rules, Steam-verify repair.
-3. Native menus: finish the OnlineSignIn path (local per-user storage, Player Match error) so the game's own
-   Online menus and the Xbox LIVE connection type work; back them with Steam (see Steamworks above).
-4. Optional lobby server for internet session listing + hole punching.
+See `ROADMAP.md`: phases 1-3 (hardening, voice chat, installer + CI) run in parallel, then stats and
+leaderboards, an optional lobby server, and 1.0.

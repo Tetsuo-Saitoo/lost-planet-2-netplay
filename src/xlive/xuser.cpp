@@ -102,7 +102,7 @@ void JoinSessionFromSteam(const XSESSION_INFO& info, DWORD flags, uint64_t hostS
 		PostNotification(XN_LIVE_INVITE_ACCEPTED, 0);
 	}
 	else {
-		LOG("invite: %s hosts a System Link game", hostName.c_str());
+		LOG("invite: %s hosts a System Link game (flags 0x%lX)", hostName.c_str(), flags);
 		OverlayPrompt("LP2 Netplay", "Joining " + hostName + ": open System Link (or Campaign) and pick Quick Match.\n" +
 		                                 hostName + "'s game will be in the list.");
 	}
