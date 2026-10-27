@@ -19,6 +19,9 @@ dead. LP2 Netplay is a new `xlive.dll` that implements that layer for real:
   it is open.
 - **System Link prompt**: the first time you reach the Campaign or System Link menu, a short card explains that
   System Link now works over the internet too and who is online.
+- **Linux and Steam Deck**: the game runs there through Proton, which loads the same `xlive.dll`; a Linux
+  installer (double-click, with dialogs) finds the game in native, Flatpak and Snap Steam and on SD cards. Linux,
+  Steam Deck and Windows players play together.
 - **Several copies on one PC** (for testing): each copy gets its own ports and player identity.
 - Saves, profile settings and everything else are handled by Capcom's own stub, which is kept as
   `xlive_capcom.dll`.
@@ -27,8 +30,10 @@ Status: early development. In-game System Link works between two PCs on the same
 Campaign game, the other found it with Quick Match, and they played through the first mission of Episode 1
 (about 15 minutes, no crash). The game's own Online menus work with two copies on one PC: Player Match (Create
 Match, the other copy's Custom Match search lists it, join, versus battle) and Campaign with the LIVE
-connection type (`docs/online-player-match-2-copies.jpg`, `docs/online-campaign-live-2-copies.jpg`). Not yet
-tried: two PCs over the internet, Steam invites / Join Game / relay between two Steam accounts, Ranked Match.
+connection type (`docs/online-player-match-2-copies.jpg`, `docs/online-campaign-live-2-copies.jpg`), Ranked Match
+(arbitration, a full battle) and Versus over System Link. Two PCs with their own Steam accounts found each other
+and joined through Steam; 0.2 fixes a drop seen there (PCs on one network stayed on Steam's relay). Not yet tried:
+two PCs on different networks, Linux / Steam Deck on real hardware.
 See `MODLOG.md` for the full engineering log.
 
 ## Installing (players)
@@ -52,16 +57,28 @@ To update or repair, run the newer `LP2NetSetup.exe` and click **Update** / **Re
 `manual` folder has the older script installer. Problems: the log is `lp2net.log` in the game folder (Steam >
 right-click Lost Planet 2 > Manage > Browse local files).
 
+### Linux and Steam Deck
+
+Lost Planet 2 runs through Proton there. Download `LP2Netplay-<version>-linux.tar.gz` from the Releases page
+(the zip has the same files in its `linux` folder), unpack it, and double-click `Install LP2 Netplay.sh` (Steam
+Deck: in Desktop Mode). It finds the game in native Steam (Steam Deck, SteamOS, Bazzite, most distros), Flatpak or
+Snap Steam, on internal storage, SD cards and other drives, keeps Capcom's file as `xlive_capcom.dll` and asks
+before changing anything. `LINUX AND STEAM DECK.txt` has the steps, the terminal alternative and where the log
+is. Not tried on a real Deck yet: reports welcome.
+
 ## Releases and the package
 
 The version number lives in one place, `project(VERSION ...)` in `CMakeLists.txt`; it ends up in both files'
 version resources, the first line of `lp2net.log`, the overlay title and the package name.
 `powershell -File tools\make_package.ps1` (after a build) makes `dist\LP2Netplay-<version>.zip`: `LP2NetSetup.exe`,
-`HOW TO TEST.txt`, `VERSION.txt` (commit and SHA-256s) and the script installer in `manual\`.
+`HOW TO TEST.txt`, `VERSION.txt` (commit and SHA-256s), the script installer in `manual\` and the Linux / Steam
+Deck installer in `linux\`, plus `dist\LP2Netplay-<version>-linux.tar.gz`. Python (`tools\pack_dist.py`) writes
+both archives so the Linux scripts stay executable. `bash tests/linux_install_test.sh <Capcom xlive.dll or a
+stand-in> build/xlive.dll` tests the Linux installer against fake Steam layouts.
 
 GitHub Actions (`.github/workflows/build.yml`) builds and packages every push and pull request (the package is the
 run's artifact). Pushing a tag `v<version>` (or `v<version>-something`, marked pre-release) also creates a draft
-release with `LP2NetSetup.exe` and the zip; check it and publish it by hand.
+release with `LP2NetSetup.exe`, the zip and the Linux tarball; check it and publish it by hand.
 
 ## Building
 

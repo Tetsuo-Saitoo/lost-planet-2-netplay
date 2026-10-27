@@ -12,7 +12,8 @@ the others wait for the phase they depend on.
 | 3 | Installer, CI builds and releases | - |
 | 4 | Stats, leaderboards and achievements | 1 |
 | 5 | Internet play without Steam (optional) | 1 |
-| 6 | 1.0: integration test with real players, docs, release | 1-4 |
+| 6 | 1.0: integration test with real players, docs, release | 1-4, 7 |
+| 7 | Linux and Steam Deck (priority: players are asking for it) | 3 |
 
 ## Phase 1: hardening (v0.2)
 - The idle Player Match that cancelled itself after about 4 minutes: inactivity kick or our bug.
@@ -42,6 +43,16 @@ the others wait for the phase they depend on.
 
 ## Phase 5: internet without Steam (optional)
 - A small lobby server for session listing and UDP hole punching, for players who don't run Steam.
+
+## Phase 7: Linux and Steam Deck
+- Done in 0.2: Linux installer (`tools/linux`, double-click with dialogs, native / Flatpak / Snap Steam, SD cards),
+  shipped in the zip and as a `-linux.tar.gz`, tested on fake Steam layouts in CI.
+- Run it on a real Steam Deck and a Linux PC: does Proton load our xlive.dll without the launch option, does
+  Proton's Steam client (lsteamclient) answer our Steam interfaces (names, lobbies, invites, relay), UPnP under
+  Wine, mixed Windows / Deck games.
+- Deck controls: the overlay on the View button and the Deck's screen size, text entry (Join by IP) with the
+  Steam on-screen keyboard, Gaming Mode friendly prompts.
+- Optional later: a Decky Loader plugin or a Steam Deck "Install" shortcut that runs from Gaming Mode.
 
 ## Phase 6: 1.0
 - Merge, full test with real players on separate PCs and networks, README for players, release.

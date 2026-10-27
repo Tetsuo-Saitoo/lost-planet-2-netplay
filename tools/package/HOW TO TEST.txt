@@ -31,6 +31,9 @@ Install (on each PC)
 
 After a game update, Steam may put Capcom's file back. Setup then says "not active": click Install again.
 
+Linux or Steam Deck: use the "linux" folder instead (or the -linux.tar.gz download) and follow
+"LINUX AND STEAM DECK.txt" there. Linux, Steam Deck and Windows players can play together.
+
 Play
 ----
 Same house (System Link, as before):

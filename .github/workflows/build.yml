@@ -27,6 +27,12 @@ jobs:
         shell: cmd
         run: tools\build.bat
 
+      - name: Linux installer tests (fake Steam layouts; a stand-in for Capcom's file)
+        shell: bash
+        run: |
+          echo "stand-in for Capcom's xlive.dll" > "$RUNNER_TEMP/capcom.dll"
+          bash tests/linux_install_test.sh "$RUNNER_TEMP/capcom.dll" build/xlive.dll
+
       - name: Package
         id: package
         shell: pwsh
@@ -48,6 +54,7 @@ jobs:
           name: LP2Netplay-${{ steps.package.outputs.version }}
           path: |
             dist/LP2Netplay-*.zip
+            dist/LP2Netplay-*-linux.tar.gz
             dist/LP2Netplay-*/LP2NetSetup.exe
           if-no-files-found: error
 
@@ -70,11 +77,15 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           zip="dist/LP2Netplay-$VERSION.zip"
+          tgz="dist/LP2Netplay-$VERSION-linux.tar.gz"
           exe="dist/LP2Netplay-$VERSION/LP2NetSetup.exe"
           cat > notes.md <<EOF
-          **Players:** download **LP2NetSetup.exe**, quit Lost Planet 2 and double-click it, then click Install.
+          **Windows:** download **LP2NetSetup.exe**, quit Lost Planet 2 and double-click it, then click Install.
           Windows may say "Windows protected your PC" because the file is not signed: click *More info* > *Run anyway*.
           The zip has the same installer, HOW TO TEST.txt and a script installer (\`manual\`) in case the exe is blocked.
+
+          **Linux and Steam Deck** (the game runs through Proton): download **LP2Netplay-$VERSION-linux.tar.gz**,
+          unpack it and double-click *Install LP2 Netplay.sh*. *LINUX AND STEAM DECK.txt* inside has the steps.
 
           Built by GitHub Actions from $GITHUB_SHA.
 
@@ -82,8 +93,9 @@ jobs:
           |---|---|
           | LP2NetSetup.exe | \`$(sha256sum "$exe" | cut -d' ' -f1)\` |
           | LP2Netplay-$VERSION.zip | \`$(sha256sum "$zip" | cut -d' ' -f1)\` |
+          | LP2Netplay-$VERSION-linux.tar.gz | \`$(sha256sum "$tgz" | cut -d' ' -f1)\` |
           EOF
           prerelease=()
           case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft "${prerelease[@]}" \
-            --title "LP2 Netplay ${TAG#v}" --notes-file notes.md "$exe" "$zip"
+            --title "LP2 Netplay ${TAG#v}" --notes-file notes.md "$exe" "$zip" "$tgz"

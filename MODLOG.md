@@ -312,16 +312,27 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
 - Still forwarded to Capcom's stub and called: XHVCreateEngine and XUserMuteListQuery (phase 2), protected data /
   profile settings (local, fine), the content enumerator (above). Stats enumerators (5284/5286) are phase 4.
 
-## Steam Deck (test package, not tried on a Deck yet)
-- LP2 runs on the Deck through Proton, which loads the game folder's xlive.dll as a native DLL, so the Windows build
-  is the Deck build. `tools/steamdeck/`: `install-steamdeck.sh` finds the game through Steam's libraryfolders.vdf
-  (internal storage or SD card), keeps Capcom's stub by SHA-256 like the Windows installer, `--uninstall` puts it
-  back; `STEAM DECK.txt` has the Desktop Mode steps and the launch option `WINEDLLOVERRIDES="xlive=n,b" %command%`.
-  Tested on a fake library in Git Bash (install, update, uninstall byte-identical, foreign DLL refused, game not
-  found). `.gitattributes` keeps `*.sh` LF.
-- Unknowns until a Deck runs it: whether Proton's lsteamclient answers our SteamClient020 interfaces (without it
-  the Steam features stay off and System Link still works), UPnP under Wine (expected to fail quietly), and the
-  overlay on the Deck's controls (hold View).
+## Linux and Steam Deck (phase 7; not tried on real hardware yet)
+- LP2 has no Linux build: Steam runs it through Proton, which loads the game folder's xlive.dll as a native DLL
+  (Wine has no builtin xlive), so the Windows build is the Linux build and the players share one network.
+- `tools/linux/"Install LP2 Netplay.sh"` (+ "Uninstall LP2 Netplay.sh", "LINUX AND STEAM DECK.txt"):
+  - finds the game in native Steam (`~/.local/share/Steam`, `~/.steam/steam|root`: Steam Deck, SteamOS, Bazzite,
+    most distros), Flatpak (`~/.var/app/com.valvesoftware.Steam/...`) and Snap Steam, and every library in their
+    libraryfolders.vdf (SD cards, other drives); `LP2_GAME_DIR` overrides;
+  - keeps Capcom's stub by SHA-256 like the Windows installers, refuses anything else, uninstall puts it back;
+  - double-clicked (no terminal) it talks through kdialog (KDE, Steam Deck) or zenity (GNOME) and asks before
+    changing anything; with neither it reopens itself in a terminal window; from a terminal it just prints;
+  - it does not set the launch option `WINEDLLOVERRIDES="xlive=n,b" %command%`; the text says to add it only if
+    no lp2net.log appears (Steam's localconfig.vdf is rewritten by a running Steam).
+- Packaging: make_package.ps1 adds `linux\` to the zip; `tools/pack_dist.py` (Python, stdlib only) writes the zip
+  and `LP2Netplay-<version>-linux.tar.gz` with Unix permissions (0755 for *.sh) so the scripts stay executable and
+  double-clickable after unpacking. CI runs `tests/linux_install_test.sh` (41 checks: Deck + SD card, Flatpak,
+  Snap, update, uninstall byte-identical, refusals, kdialog / zenity dialog paths with stubs) with a stand-in
+  for Capcom's file; one check ties the script's Capcom SHA-256 to the Windows installer's. `.gitattributes`
+  keeps `*.sh` LF.
+- Unknowns until real hardware runs it: whether Proton's lsteamclient answers our SteamClient020 interfaces
+  (without it the Steam features stay off and System Link still works), UPnP under Wine (expected to fail
+  quietly), the overlay on the Deck's controls (hold View) and screen.
 
 ## Gotchas
 1. SteamStub: run the exe with SteamAppId/SteamGameId=45750 set (as Steam does); without it, it exits code 53
