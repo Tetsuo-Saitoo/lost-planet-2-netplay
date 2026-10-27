@@ -46,6 +46,8 @@ add_library(xlive SHARED
 	src/xlive/xui.cpp
 	src/xlive/xstorage.cpp
 	src/xlive/xstats.cpp
+	src/xlive/achievements.cpp
+	src/xlive/spa.cpp
 	src/xlive/steam.cpp
 	src/xlive/matchmaking.cpp
 	src/xlive/xlive.rc
@@ -62,6 +64,16 @@ add_executable(nettest tests/nettest.cpp)
 target_compile_definitions(nettest PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 target_link_libraries(nettest PRIVATE ws2_32)
 add_dependencies(nettest xlive)
+
+# Stats sharing and achievements through xlive.dll: `statstest a <LP2DX9.exe>`, then `statstest b <LP2DX9.exe>`.
+add_executable(statstest tests/statstest.cpp)
+target_compile_definitions(statstest PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+add_dependencies(statstest xlive)
+
+# Reads the SPA (achievements, stats views) out of an installed game exe: `spatest <LP2DX9.exe>` (PASS/FAIL).
+add_executable(spatest tests/spatest.cpp src/xlive/spa.cpp)
+target_compile_definitions(spatest PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_compile_options(spatest PRIVATE /W4 /utf-8)
 
 # LP2NetSetup.exe: the players' installer. One file: xlive.dll is embedded as a resource; static CRT, so nothing
 # else to install. (xlive.dll lands in the build folder with a single-config generator such as build.bat's Ninja.)

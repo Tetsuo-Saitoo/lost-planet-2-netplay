@@ -7,6 +7,7 @@
 #include "log.h"
 #include "lp2net_version.h"
 #include "net.h"
+#include "stats.h"
 #include "steam.h"
 #include "xnotify.h"
 
@@ -36,6 +37,8 @@ HWND g_hwnd = nullptr;
 bool g_ready = false;
 std::atomic<bool> g_visible{false};
 bool g_justOpened = false;
+std::atomic<bool> g_selectAchievements{false};  // XShowAchievementsUI: open on that tab
+bool g_showSecret = false;
 std::recursive_mutex g_imgui;  // XLiveRender and the message pump may run on different threads
 
 struct Toast {
@@ -351,6 +354,57 @@ void DrawSettingsTab() {
 	ImGui::TextDisabled("Settings file: %ls", (GameDir() + L"lp2net.ini").c_str());
 }
 
+void DrawAchievementsTab() {
+	auto list = ListAchievements();
+	if (list.empty()) {
+		ImGui::TextWrapped("The achievement list could not be read from the game.");
+		return;
+	}
+	int unlocked = 0, score = 0, total = 0;
+	for (const auto& a : list) {
+		total += a.gamerscore;
+		if (a.unlocked) {
+			++unlocked;
+			score += a.gamerscore;
+		}
+	}
+	ImGui::Text("%d of %d unlocked, %d of %d G", unlocked, (int)list.size(), score, total);
+	ImGui::TextDisabled("Kept on this PC with your profile: Lost Planet 2 on Steam has no achievements of its own.");
+	ImGui::Checkbox("Show secret achievements", &g_showSecret);
+	if (ImGui::BeginTable("achievements", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH)) {
+		ImGui::TableSetupColumn("Achievement");
+		ImGui::TableSetupColumn("G", ImGuiTableColumnFlags_WidthFixed, 40 * g_uiScale);
+		ImGui::TableSetupColumn("Unlocked", ImGuiTableColumnFlags_WidthFixed, 90 * g_uiScale);
+		ImGui::TableHeadersRow();
+		for (const auto& a : list) {
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			bool hide = a.secret && !g_showSecret;
+			if (a.unlocked) {
+				ImGui::TextUnformatted(a.name.c_str());
+			}
+			else {
+				ImGui::TextDisabled("%s", hide ? "Secret achievement" : a.name.c_str());
+			}
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+			ImGui::TextWrapped("%s", hide ? "Unlock it to see what it is." : a.description.c_str());
+			ImGui::PopStyleColor();
+			ImGui::TableNextColumn();
+			ImGui::Text("%u", a.gamerscore);
+			ImGui::TableNextColumn();
+			SYSTEMTIME st{};
+			FILETIME local{};
+			if (a.unlocked && FileTimeToLocalFileTime(&a.when, &local) && FileTimeToSystemTime(&local, &st)) {
+				ImGui::Text("%04u-%02u-%02u", st.wYear, st.wMonth, st.wDay);
+			}
+			else {
+				ImGui::TextDisabled("-");
+			}
+		}
+		ImGui::EndTable();
+	}
+}
+
 void DrawHelpTab() {
 	ImGui::TextWrapped(
 	    "Same network: both players pick System Link in the game. One hosts, the other searches.\n\n"
@@ -388,6 +442,11 @@ void DrawWindow() {
 			}
 			if (ImGui::BeginTabItem("Join by IP")) {
 				DrawJoinTab();
+				ImGui::EndTabItem();
+			}
+			ImGuiTabItemFlags achFlags = g_selectAchievements.exchange(false) ? ImGuiTabItemFlags_SetSelected : 0;
+			if (ImGui::BeginTabItem("Achievements", nullptr, achFlags)) {
+				DrawAchievementsTab();
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Settings")) {
@@ -566,6 +625,11 @@ void OverlayShow(bool show) {
 		RefreshSessions();
 	}
 	PostNotification(XN_SYS_UI, show ? TRUE : FALSE);  // GFWL titles pause their own input while the guide is up
+}
+
+void OverlayShowAchievements() {
+	g_selectAchievements = true;
+	OverlayShow(true);
 }
 
 bool OverlayVisible() {

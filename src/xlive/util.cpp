@@ -69,4 +69,31 @@ DWORD CompleteOverlapped(XOVERLAPPED* ov, DWORD error, DWORD result) {
 	return ERROR_IO_PENDING;
 }
 
+bool ReadWholeFile(const std::wstring& path, std::vector<BYTE>* out) {
+	HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+	if (f == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	DWORD size = GetFileSize(f, nullptr), got = 0;
+	out->resize(size == INVALID_FILE_SIZE ? 0 : size);
+	BOOL ok = size != INVALID_FILE_SIZE && (!size || ReadFile(f, out->data(), size, &got, nullptr)) && got == size;
+	CloseHandle(f);
+	return ok != FALSE;
+}
+
+bool WriteFileAtomic(const std::wstring& path, const void* data, size_t cb) {
+	for (size_t i = path.find(L'\\', 3); i != std::wstring::npos; i = path.find(L'\\', i + 1)) {
+		CreateDirectoryW(path.substr(0, i).c_str(), nullptr);
+	}
+	std::wstring tmp = path + L".tmp";
+	HANDLE f = CreateFileW(tmp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+	if (f == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	DWORD wrote = 0;
+	BOOL ok = WriteFile(f, data, (DWORD)cb, &wrote, nullptr) && wrote == cb && FlushFileBuffers(f);
+	CloseHandle(f);
+	return ok && MoveFileExW(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+}
+
 }  // namespace lp2net

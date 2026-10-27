@@ -100,13 +100,11 @@ extern "C" DWORD WINAPI XShowKeyboardUI(DWORD dwUserIndex, DWORD dwFlags, LPCWST
 	          : ERROR_FUNCTION_FAILED;
 }
 
+// LP2 on Steam has no Steam achievements: ours are listed in the overlay (achievements.cpp).
 extern "C" DWORD WINAPI XShowAchievementsUI(DWORD dwUserIndex) {
 	LOG("XShowAchievementsUI(user=%lu)", dwUserIndex);
-	if (SteamOverlay("Achievements")) {
-		return ERROR_SUCCESS;
-	}
-	auto fn = Capcom<DWORD(WINAPI*)(DWORD)>(5250);
-	return fn ? fn(dwUserIndex) : ERROR_SUCCESS;
+	OverlayShowAchievements();
+	return ERROR_SUCCESS;
 }
 
 extern "C" DWORD WINAPI XShowGamerCardUI(DWORD dwUserIndex, XUID xuidPlayer) {

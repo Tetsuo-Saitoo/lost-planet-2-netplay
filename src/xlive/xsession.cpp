@@ -6,6 +6,7 @@
 #include "log.h"
 #include "matchmaking.h"
 #include "net.h"
+#include "stats.h"
 #include "steam.h"
 #include "util.h"
 
@@ -265,6 +266,7 @@ extern "C" DWORD WINAPI XSessionJoinLocal(HANDLE hSession, DWORD dwUserCount, co
 extern "C" DWORD WINAPI XSessionJoinRemote(HANDLE hSession, DWORD dwXuidCount, const XUID* pXuids,
                                            const BOOL* pfPrivateSlots, XOVERLAPPED* pOverlapped) {
 	LOG("XSessionJoinRemote(%p, %lu)", hSession, dwXuidCount);
+	StatsMetPlayers(pXuids, dwXuidCount);
 	return JoinMembers(hSession, dwXuidCount, pXuids, nullptr, pfPrivateSlots, pOverlapped);
 }
 
@@ -382,7 +384,9 @@ extern "C" DWORD WINAPI XSessionArbitrationRegister(HANDLE hSession, DWORD dwFla
 	return CompleteOverlapped(pOverlapped, ERROR_SUCCESS, 0);
 }
 
+// Stats are kept on the player's PC (xstats.cpp).
 extern "C" DWORD WINAPI XSessionWriteStats(HANDLE hSession, XUID xuid, DWORD dwNumViews, const void* pViews,
                                            XOVERLAPPED* pOverlapped) {
+	StatsWrite(xuid, dwNumViews, pViews);
 	return CompleteOverlapped(pOverlapped, ERROR_SUCCESS, 0);
 }
