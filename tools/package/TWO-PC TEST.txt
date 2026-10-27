@@ -1,0 +1,31 @@
+LP2 Netplay - two-PC test checklist
+===================================
+
+Please go through this with a friend on a second PC, then send both logs (step 6).
+
+1. Set up (both PCs)
+   - Install this same package on both PCs (LP2NetSetup.exe, see HOW TO TEST.txt).
+   - Start Lost Planet 2 from Steam.
+
+2. Voice chat
+   - In the lobby and in battle: can each of you hear the other? Check both ways.
+   - Does the talking icon show for whoever is speaking?
+   - Overlay (Home) > Voice > Mute: does it silence that player?
+   - Write down any echo, crackling or long delay.
+
+3. Staying connected
+   - Play one match all the way to its end, 10 minutes or more.
+   - If anyone is dropped or sent back to the menu, write down the time on the clock.
+
+4. Ranked Match
+   - Play one Ranked Match all the way to the results screen.
+   - Write down the rank shown at the end.
+
+5. Controller
+   - Hold Back to open the overlay, move around it with the stick or D-pad, press B to close it.
+
+6. Afterwards
+   - Quit the game on both PCs.
+   - Send lp2net.log from BOTH PCs, together with your notes. It is in the game folder:
+     Steam > right-click Lost Planet 2 > Manage > Browse local files.
+   - Do this before starting the game again: each start replaces lp2net.log.

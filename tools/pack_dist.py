@@ -1,7 +1,7 @@
 """Write the player package archives with Unix permissions, so the Linux scripts stay executable after unpacking
 (Compress-Archive cannot store them):
   dist/<name>.zip            the whole package
-  dist/<name>-linux.tar.gz   the linux folder plus HOW TO TEST.txt and VERSION.txt, for Linux and Steam Deck
+  dist/<name>-linux.tar.gz   the linux folder plus the two test notes and VERSION.txt, for Linux and Steam Deck
 Usage (make_package.ps1 runs it):  python -I tools/pack_dist.py dist/<name>
 """
 import os
@@ -9,7 +9,7 @@ import sys
 import tarfile
 import zipfile
 
-EXTRA_FOR_LINUX = ("HOW TO TEST.txt", "VERSION.txt")
+EXTRA_FOR_LINUX = ("HOW TO TEST.txt", "TWO-PC TEST.txt", "VERSION.txt")
 
 
 def mode(rel):

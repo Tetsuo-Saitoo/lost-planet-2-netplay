@@ -1,7 +1,7 @@
 # Assemble the player package from a finished build: dist\LP2Netplay-<version>\ and dist\LP2Netplay-<version>.zip
-# (LP2NetSetup.exe, HOW TO TEST.txt, the script installer in manual\ as a fallback, and linux\ for Linux and Steam
-# Deck; no game files), plus dist\LP2Netplay-<version>-linux.tar.gz. The version comes from the built xlive.dll,
-# i.e. project(VERSION) in CMakeLists.txt. CI runs this on every push.
+# (LP2NetSetup.exe, HOW TO TEST.txt, TWO-PC TEST.txt, the script installer in manual\ as a fallback, and linux\
+# for Linux and Steam Deck; no game files), plus dist\LP2Netplay-<version>-linux.tar.gz. The version comes from the
+# built xlive.dll, i.e. project(VERSION) in CMakeLists.txt. CI runs this on every push.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $build = Join-Path $root 'build'
@@ -17,9 +17,10 @@ $out = Join-Path $root "dist\$name"
 Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $out, (Join-Path $out 'manual'), (Join-Path $out 'linux') | Out-Null
 Copy-Item $exe.FullName $out
-Copy-Item (Join-Path $PSScriptRoot 'package\HOW TO TEST.txt') $out
+$docs = 'HOW TO TEST.txt', 'TWO-PC TEST.txt'
+$docs | ForEach-Object { Copy-Item (Join-Path $PSScriptRoot "package\$_") $out }
 Copy-Item $dll.FullName (Join-Path $out 'manual')
-Copy-Item (Join-Path $PSScriptRoot 'package\*') (Join-Path $out 'manual') -Exclude 'HOW TO TEST.txt'
+Copy-Item (Join-Path $PSScriptRoot 'package\*') (Join-Path $out 'manual') -Exclude $docs
 Copy-Item $dll.FullName (Join-Path $out 'linux')
 Copy-Item (Join-Path $PSScriptRoot 'linux\*') (Join-Path $out 'linux')
 

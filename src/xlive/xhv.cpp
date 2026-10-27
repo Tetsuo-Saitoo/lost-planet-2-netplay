@@ -856,9 +856,12 @@ private:
 		case Source::Steam: {
 			int result = 0;
 			int n = SteamVoiceGet(steamBuf_, sizeof(steamBuf_), &result);
-			if (result != lastSteamResult_) {
-				LOG("voice: Steam voice result %d", result);  // 0 ok, 2 not recording, 3 no data, 6 restricted
-				lastSteamResult_ = result;
+			// 0 ok, 2 not recording, 3 no data, 6 restricted. 0 and 3 alternate every ~40 ms while someone talks,
+			// so they count as one state: log only when recording starts or stops working.
+			int state = result == 3 ? 0 : result;
+			if (state != lastSteamResult_) {
+				LOG("voice: Steam voice result %d", result);
+				lastSteamResult_ = state;
 			}
 			if (n > 0) {
 				++g_n.captured;

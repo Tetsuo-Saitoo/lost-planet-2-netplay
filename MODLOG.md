@@ -325,10 +325,15 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   above), registers local talker 0 in voice chat mode, the voice thread starts, Steam's GetVoiceOptimalSampleRate
   returns 24000 (the new ISteamUser slots line up), and on quit the game unregisters the talker, releases the
   engine and the thread stops before XLiveUninitialize. Ran ~6 min at the menus; no errors or failures in the logs.
-- NOT verified in game yet: a lobby with talkers (remote talker registration, the game's talking icons, mute from the
-  game's own menus), Steam microphone capture and DecompressVoice with real Steam data, push-to-talk, the overlay
-  Voice tab on screen, two real PCs. The second copy did not quit on WM_CLOSE (it showed something, probably the
-  quit prompt, that needs input) and was ended by PID.
+- Two real PCs (2026-10-27, the build from before the 0.2.0 merge): a System Link battle with this PC as host, the
+  Steam microphone on both. The tester heard the other player in game without problems. This PC's log: the game
+  registered the remote talker 199 s after start, then an 8-minute battle with 1920 voice packets received, 0 lost,
+  0 underruns, 0 decode errors; on quit the engine was released cleanly before XLiveUninitialize. So remote talker
+  registration, Steam capture and DecompressVoice with real speech work.
+- NOT verified yet: the game's talking icons, mute (overlay and the game's own menus), push-to-talk, the overlay
+  Voice tab on screen, voice over the internet (Steam relay), and two PCs on 0.2.0 (packets that arrive twice, see
+  Gotchas). The second test-bed copy did not quit on WM_CLOSE (it showed something, probably the quit prompt, that
+  needs input) and was ended by PID.
 
 ### Proximity voice (requested next): findings and plan
 - MT Framework's type registry is readable statically: every class registers through the MtDTI constructor
@@ -358,6 +363,12 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
 - GetTickCount64 stamps from several threads: `now - t` can underflow when another thread stamped t after the
   caller read `now` (this erased a peer's entry the moment it was added). xhv.cpp uses Age(t, now).
 - Steam's GetVoice data is only decodable as a whole call's output; never split it across packets.
+- While someone talks, GetVoice's result alternates 0 (data) and 3 (no data yet) every ~40 ms. Logging each change
+  wrote ~4000 lines in 12 minutes; the log now treats 0 and 3 as one state and notes only errors (2 not recording,
+  6 restricted) and the way back.
+- Since 0.2.0, core packets go over UDP and the Steam relay until a direct HelloAck arrives (with one-way UDP, for
+  the whole game), so a voice packet can arrive twice. OnVoicePacket drops a packet 1..999 behind the next expected
+  sequence number within 5 s, before decoding, and counts it as a duplicate.
 
 ## Phase 1: hardening (2026-10-27)
 - FIXED: two PCs on one home network that met through Steam (Player Match search, lobby data) talked over the

@@ -71,9 +71,10 @@ is. Not tried on a real Deck yet: reports welcome.
 The version number lives in one place, `project(VERSION ...)` in `CMakeLists.txt`; it ends up in both files'
 version resources, the first line of `lp2net.log`, the overlay title and the package name.
 `powershell -File tools\make_package.ps1` (after a build) makes `dist\LP2Netplay-<version>.zip`: `LP2NetSetup.exe`,
-`HOW TO TEST.txt`, `VERSION.txt` (commit and SHA-256s), the script installer in `manual\` and the Linux / Steam
-Deck installer in `linux\`, plus `dist\LP2Netplay-<version>-linux.tar.gz`. Python (`tools\pack_dist.py`) writes
-both archives so the Linux scripts stay executable. `bash tests/linux_install_test.sh <Capcom xlive.dll or a
+`HOW TO TEST.txt`, `TWO-PC TEST.txt` (a checklist for testers), `VERSION.txt` (commit and SHA-256s), the script
+installer in `manual\` and the Linux / Steam Deck installer in `linux\`, plus
+`dist\LP2Netplay-<version>-linux.tar.gz`. Python (`tools\pack_dist.py`) writes both archives so the Linux scripts
+stay executable. `bash tests/linux_install_test.sh <Capcom xlive.dll or a
 stand-in> build/xlive.dll` tests the Linux installer against fake Steam layouts.
 
 GitHub Actions (`.github/workflows/build.yml`) builds and packages every push and pull request (the package is the
