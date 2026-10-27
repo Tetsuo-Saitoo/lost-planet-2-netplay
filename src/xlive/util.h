@@ -17,4 +17,7 @@ std::string XnAddrToString(const XNADDR& x);
 // ERROR_IO_PENDING as the real API would; without one the error code is returned directly.
 DWORD CompleteOverlapped(XOVERLAPPED* ov, DWORD error, DWORD result);
 
+// A section of the game exe in memory (".text", ".rdata", ...).
+bool FindSection(const char* name, BYTE** start, size_t* size);
+
 }  // namespace lp2net

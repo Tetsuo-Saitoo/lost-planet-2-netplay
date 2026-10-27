@@ -35,6 +35,8 @@ void EnsureInit() {
 
 bool GameLogTryInstall();
 void CarrySaveToGamertag();
+void WatchdogStart();
+void WatchdogStop();
 
 FARPROC CapcomProc(WORD ordinal) {
 	EnsureInit();
@@ -69,6 +71,9 @@ extern "C" HRESULT WINAPI XLiveInitializeEx(XLIVE_INITIALIZE_INFO* pInfo, DWORD 
 	}
 	OverlayInit(pInfo);
 	GameLogTryInstall();
+	if (pInfo && pInfo->pD3D) {
+		WatchdogStart();
+	}
 	PostNotification(XN_SYS_SIGNINCHANGED, 1);
 	return S_OK;
 }
@@ -79,6 +84,7 @@ extern "C" HRESULT WINAPI XLiveInitialize(XLIVE_INITIALIZE_INFO* pInfo) {
 
 extern "C" void WINAPI XLiveUninitialize() {
 	LOG("XLiveUninitialize");
+	WatchdogStop();
 	OverlayShutdown();
 	NetShutdown();
 }

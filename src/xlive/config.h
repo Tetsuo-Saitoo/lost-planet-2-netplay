@@ -21,6 +21,7 @@ struct Config {
 	std::vector<std::string> peers;  // "host[:port]" entries for join-by-IP
 	std::string lobbyServer;          // optional "host[:port]" rendezvous/listing server
 	bool onlineMode = true;  // signed in "online": the game's own Online menus (Ranked/Player Match) work
+	bool freezeGuard = true;  // the game's frozen-game check never takes a player out of a match (watchdog.cpp)
 
 	// [Steam]
 	bool steam = true;         // use the Steam client when the game runs under Steam
