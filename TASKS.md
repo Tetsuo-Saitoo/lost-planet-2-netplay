@@ -27,7 +27,9 @@ Player package: `.claude\worktrees\phase2-voice-f1698a\dist\LP2Netplay-0.2.0.zip
 5. Unexplained: two copies on one PC dropped after ~4 min (before 0.2.0). Watch the new logs.
 6. Proximity voice (user asked): run `[Debug] VoiceProbe=1` in a 2-player mission to find player positions, then
    pan/attenuate. Plan: MODLOG "Proximity voice (requested next)". Owner: voice session.
-7. Uncommitted in main: ROADMAP.md "Later: modern upgrades and accessibility" section (user's call).
+7. Phase 3 leftovers (installer session): code signing, opt-in update check, remove firewall rules on Uninstall,
+   the harmless error `testbed.ps1 Release` prints.
+8. Uncommitted in main: ROADMAP.md "Later: modern upgrades and accessibility" section (user's call).
 
 ## How to (no code reading needed)
 - Build: `tools\build.bat` -> build\xlive.dll, LP2NetSetup.exe. Package: `tools\make_package.ps1` -> dist\.

@@ -2,6 +2,7 @@
 
 Newest first. One line per item: date, who (session), what, where. Details go in MODLOG.md.
 
+- 2026-10-28 main session: committed ROADMAP "Later" section; ready for an internet two-PC test.
 - 2026-10-28 main session: added TASKS.md / WORKLOG.md and a CLAUDE.md pointing agents at them.
 - 2026-10-27 main session: installed package `da540a5` on this PC and made it the test-bed known-good.
 - 2026-10-27 main session: merged main into voice branch (`da540a5`), rebuilt 0.2.0 package; all offline tests pass.

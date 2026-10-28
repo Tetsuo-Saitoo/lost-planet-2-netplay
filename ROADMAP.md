@@ -57,6 +57,24 @@ the others wait for the phase they depend on.
 ## Phase 6: 1.0
 - Merge, full test with real players on separate PCs and networks, README for players, release.
 
+## Later: modern upgrades and accessibility (separate mods, after 1.0)
+Separate from LP2 Netplay, each switchable on its own. Like LP2 Netplay they load alongside the game and change it
+at runtime: the decrypted exe is for reading only, and no modified game file is ever shipped.
+- Video: modern rendering path (e.g. DXVK), widescreen / ultrawide, better anti-aliasing, sharper shadows,
+  upscaling. Higher frame rates only after checking whether game speed is tied to the frame rate.
+- Voice to text: local speech recognition on voice chat (nothing sent to the cloud), captions in the overlay,
+  optionally into the game's text chat.
+- Input: detect the device in use (keyboard and mouse, Xbox, PlayStation, Steam Deck) and switch button prompts
+  and layouts to match, per device; free remapping.
+- Accessibility:
+  - seeing: colorblind modes, high-contrast outlines, larger HUD and menu text, less shake, flashing and blur;
+  - hearing: cutscene and voice captions, on-screen cues for important sounds, mono audio;
+  - movement: one-handed layouts, toggle instead of hold, dead zones, adaptive controllers, slower or skippable
+    quick-time events;
+  - focus: slower game speed, objective reminders.
+- Fairness rule: changes to what a player sees or hears are fine everywhere. Changes to how the game plays (speed,
+  aim assist, quick-time event help) are single player only, or need every player in a multiplayer game to agree.
+
 ## Working rules (for the agents building this)
 - One branch per phase, in its own git worktree. Commit to your branch; don't push, don't merge into `main`.
 - One game install, one screen: take the test-bed lock before installing a DLL into the game, starting the
