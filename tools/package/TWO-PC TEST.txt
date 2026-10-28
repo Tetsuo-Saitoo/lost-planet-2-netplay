@@ -1,7 +1,7 @@
 LP2 Netplay - two-PC test checklist
 ===================================
 
-Please go through this with a friend on a second PC, then send both logs (step 6).
+Please go through this with a friend on a second PC, then send both logs (step 7).
 
 1. Set up (both PCs)
    - Install this same package on both PCs (LP2NetSetup.exe, see HOW TO TEST.txt).
@@ -21,10 +21,15 @@ Please go through this with a friend on a second PC, then send both logs (step 6
    - Play one Ranked Match all the way to the results screen.
    - Write down the rank shown at the end.
 
-5. Controller
+5. Stats and achievements
+   - After the match: open the game's Leaderboards. Do both of you show up?
+   - If an achievement pops up during play, write down which one.
+   - Overlay (Home) > Achievements: does it list what you have earned?
+
+6. Controller
    - Hold Back to open the overlay, move around it with the stick or D-pad, press B to close it.
 
-6. Afterwards
+7. Afterwards
    - Quit the game on both PCs.
    - Send lp2net.log from BOTH PCs, together with your notes. It is in the game folder:
      Steam > right-click Lost Planet 2 > Manage > Browse local files.
