@@ -22,6 +22,10 @@ dead. LP2 Netplay is a new `xlive.dll` that implements that layer for real:
 - **Linux and Steam Deck**: the game runs there through Proton, which loads the same `xlive.dll`; a Linux
   installer (double-click, with dialogs) finds the game in native, Flatpak and Snap Steam and on SD cards. Linux,
   Steam Deck and Windows players play together.
+- **Stats, leaderboards and achievements**: the game's stats are kept on your PC and shared with the people you
+  play with, so the game's own leaderboards show you and them. The achievements the game awards are kept too: a
+  toast when you earn one, and an Achievements tab in the overlay lists them with the game's own names and
+  descriptions.
 - **Several copies on one PC** (for testing): each copy gets its own ports and player identity.
 - Saves, profile settings and everything else are handled by Capcom's own stub, which is kept as
   `xlive_capcom.dll`.
@@ -118,6 +122,17 @@ nettest client      (in another; prints PASS or FAIL)
 repair, update, uninstall, the GFWL backup, the refuse cases). It needs Capcom's stub from a local install and never
 touches the real game folder or the firewall. `LP2NetSetup.exe --help` lists the command-line options.
 
+Stats and achievements need an installed game (they read its SPA, and nothing from it is shipped):
+
+```
+cd build
+spatest  "<game folder>\LP2DX9.exe"     (reads the SPA; prints PASS or FAIL)
+statstest a "<game folder>\LP2DX9.exe"  (in one terminal)
+statstest b "<game folder>\LP2DX9.exe"  (in another; both print PASS or FAIL)
+```
+
+statstest keeps its files in `%TEMP%\lp2net-statstest`, never in your game profile.
+
 ## Voice test
 
 Two processes talk through the voice engine without the game: put an `lp2net.ini` next to `voicetest.exe` with
@@ -129,8 +144,9 @@ the dumps hold what each side played).
 
 - `src/xlive/` the DLL: `net.*` (peers, virtual addresses, packet header, core socket), `xsocket.cpp`, `xnet.cpp`,
   `xsession.cpp`, `xuser.cpp`, `xnotify.cpp`, `xhandle.cpp`, `overlay.cpp`, `presence.cpp` (where the player is,
-  System Link prompt), `xui.cpp` (Guide screens -> Steam overlay), `xstorage.cpp` / `xstats.cpp` (LIVE storage
-  and stats, online mode), `matchmaking.cpp` + `lp2_queries.inc` (session search with the game's own queries),
+  System Link prompt), `xui.cpp` (Guide screens -> Steam overlay), `xstorage.cpp` (LIVE storage, online mode),
+  `xstats.cpp` + `achievements.cpp` + `spa.cpp` (stats, leaderboards and achievements kept on the player's PC; names
+  from the game's SPA), `matchmaking.cpp` + `lp2_queries.inc` (session search with the game's own queries),
   `steam.cpp` (Steam client: name, lobbies, invites, relay, rich presence), `instances.cpp` (input gating,
   multi-copy), `upnp.cpp`, `gamelog.cpp`, `xhv.cpp` (voice chat: the game's XHV engine, mute list),
   `exports.def` + `forwards.cpp` (ordinal table; the rest goes to Capcom's stub), `xlive.rc` (version resource)
@@ -138,7 +154,7 @@ the dumps hold what each side played).
   `firewall.cpp` (status, and the fix behind the button), `main.cpp` (window and command line)
 - `src/version.h.in`, `src/versioninfo.rc` the version number and the shared version resource
 - `tools/` build, package, dev install, game launcher, Ghidra headless scripts
-- `tests/` transport test, voice test, installer test
+- `tests/` transport test, voice test, installer test, SPA and stats tests
 - `.github/workflows/build.yml` CI build, package artifact, draft release on tags
 - `third_party/imgui` Dear ImGui 1.91.9 (MIT), as a git submodule
 - `re-work/` (git-ignored) backups, analysis copies, Ghidra projects, decompiler output. Never commit or share.

@@ -3,6 +3,7 @@
 #include "gfwl.h"
 
 #include <string>
+#include <vector>
 
 namespace lp2net {
 
@@ -19,5 +20,10 @@ DWORD CompleteOverlapped(XOVERLAPPED* ov, DWORD error, DWORD result);
 
 // A section of the game exe in memory (".text", ".rdata", ...).
 bool FindSection(const char* name, BYTE** start, size_t* size);
+
+// Small data files of our own (stats, achievements). The write goes to a temp file first and then replaces the old
+// one, so a crash never leaves half a file; missing folders are created.
+bool ReadWholeFile(const std::wstring& path, std::vector<BYTE>* out);
+bool WriteFileAtomic(const std::wstring& path, const void* data, size_t cb);
 
 }  // namespace lp2net

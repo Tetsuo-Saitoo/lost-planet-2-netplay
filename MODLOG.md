@@ -480,6 +480,90 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
   (without it the Steam features stay off and System Link still works), UPnP under Wine (expected to fail
   quietly), the overlay on the Deck's controls (hold View) and screen.
 
+## Stats, leaderboards and achievements (phase 4, 2026-10-27)
+- Files: `xstats.cpp` (stats store, sharing, read/enumerate/estimate), `achievements.cpp`, `spa.cpp/.h` (reads the
+  game's SPA), `stats.h`. Now ours instead of Capcom's: 5278 XUserWriteAchievements, 5280
+  XUserCreateAchievementEnumerator, 5284 XUserCreateStatsEnumeratorByRank, 5286 XUserCreateStatsEnumeratorByXuid,
+  next to 5281 XUserReadStats and 5346 XUserEstimateRankForRating. The estimate is now real: 1 + the number of
+  known rows with a better rating (it used to be rank 1 for everything).
+- SPA: an XDBF file (big-endian) in the exe, `FindResourceW(exe, L"SPAFILE", L"RT_RCDATA")`. The type is the
+  string "RT_RCDATA", not RT_RCDATA (10); id 10 is tried too. Header 24 bytes, entries 18 bytes, data at
+  24 + entries*18 + free*8. Namespace 1: XACH (36-byte achievement records), XVC2 (stats views). Namespace 3, id 1:
+  English XSTR strings. It is read from the running exe (GameSpa()); nothing from it is shipped.
+- XVC2: u16 shared-view count. Each shared view: u16 columns, u16 rows, 8 reserved, then columns+rows fields, each
+  with its own size (0x20 in LP2): size, property id, flags (1 = hidden), u16 attribute id, u16 string id, u16
+  aggregation (0x8001 last, 0x800B max), ... Next comes an XPBM block whose size field is wrong: 'XPBM', version,
+  size, 4 bytes, then a u32 count (not u16) and that many u32 property ids. Then a u16 view count and 16-byte views:
+  id, flags, u16 shared-view index, u16 string id, 4 unused.
+- LP2: 50 achievements (1000 G). 44 are secret: no SPA flag 0x8 (shown while locked) and no "unachieved" text.
+  There are 63 views, 62 of them rated. Views 1-3 are battle views. Views 13-37 are Training Basic (0xD = map 1
+  level 1), 38-62 are Training Advanced (0x26 = map 1 level 1), and 0xFFFF0000 is the TrueSkill view.
+- The column ids the game reads are SPA attribute ids, not property ids: [1..9] for battle views, [1..4] for
+  training views. The rating comes back in the row's i64Rating.
+- Training SCORE (0x2000001D, the rating of every training view) is minus the time in ms: -251308 for 04'11"308.
+  So the view's Max aggregation keeps the best time. A run also writes 0x2000001C (options), 0x20000013 (a 64-bit
+  day value), 0x2000001E and 0x2000001F.
+- Call order of a Training run:
+  1. XSessionCreate(flags 0x4, 1 private slot), then JoinLocal and Start.
+  2. XUserEstimateRankForRating(view, score).
+  3. XSessionWriteStats with no XOVERLAPPED: it is synchronous.
+  4. End, then Delete.
+  The leaderboard screen calls ByRank(from 1, 1 row) for the world record, then ByRank(from 1, 10 rows) and ByXuid
+  for the player's row. The Online menu reads views 1-3 for the local player. A row with rank 0 means "not
+  ranked", and the game leaves it out.
+- Store: `<profile>\LP2Netplay\stats.dat` (binary 'LP2S' v1: met players, then rows of view, xuid, own, gamertag,
+  stamp, writes and properties). It keeps the player's own rows plus the rows of players met in a session
+  (XSessionJoinRemote). Ranks use competition ranking by rating; on a tie the earlier write ranks first.
+  XSessionWriteStats for other players' xuids (a host writing for everyone) is ignored: each player's copy writes
+  and shares its own row. Nothing is written until there is a row to keep.
+- Sharing uses PacketType::Stats = 9 (8 is Voice on the phase 2 branch). Own rows go to a peer on its first hello,
+  and to every live peer after each write, in packets of at most 1200 bytes. The header has version, row count,
+  xuid and a 16-byte gamertag. Each row has view, stamp, writes and n properties. There is no resend: the next write
+  or hello fixes a lost packet. A received row replaces ours when it is newer or the name changed. Rows from players
+  not met yet stay in memory only, and are shown and saved after a JoinRemote. Lock order is net then stats:
+  HandleCore calls StatsReceive/StatsPackets under the net lock, and StatsWrite drops the stats lock before
+  SendStatsToPeers.
+- The friends leaderboard stays empty. XFriendsCreateEnumerator is untouched because it also feeds
+  NetworkCommunityLive::moveGetFriendList (XONLINE_FRIEND is 196 bytes).
+- Achievements:
+  - The game queues an unlock (NetworkXboxMediator::writeAchievements) only while signed in. It expects
+    ERROR_IO_PENDING, then XGetOverlappedResult success.
+  - Unlocks are kept in `<profile>\LP2Netplay\achievements.txt` ("id FILETIME" lines). Each new one shows an
+    "Achievement unlocked" toast with the name, G and description.
+  - The overlay's Achievements tab (between Join by IP and Settings) shows the count, the G total and a "Show secret
+    achievements" checkbox. A locked secret one reads "Secret achievement". XShowAchievementsUI opens that tab.
+  - XUserCreateAchievementEnumerator writes the XACHIEVEMENT_DETAILS records (36 bytes) first, then their UTF-16
+    strings, sized 36 + (33+100+100)*2 per item.
+  - Enumerators that fill themselves use CreateFillEnumerator (xhandle.cpp). XEnumerate calls the fill outside the
+    handle lock.
+- Tests:
+  - `spatest <LP2DX9.exe>` checks the SPA reader. PASS needs 50 named achievements, view 1 rated by 0x2000001D, and
+    the skill view with 4 properties.
+  - `statstest a <exe>`, then `statstest b <exe>` in a second window. These are two processes through xlive.dll,
+    with LP2NET_PROFILE_DIR (a temp profile) and LP2NET_SPA_EXE (the SPA from the exe loaded as a data file). They
+    cover sharing (~200 ms), Max aggregation, the by-rank board, the estimate, and an achievement write plus the
+    enumerator.
+- VERIFIED in game (one copy): a Training Basic map 1 level 1 run writes the stats. The Training menu then shows
+  WORLD RECORD 04'11"308, and the Leaderboards screen shows "Total Players : 1" with the player at #1. The overlay
+  Achievements tab lists all 50 with their SPA names.
+- VERIFIED (two copies): each copy gets the other's rows on hello ("1 rows from StatsTest ..., not played with
+  yet"). After Ranked Quick Match joins them, the client saves the host's row (JoinRemote passes the session xuid,
+  the same one the stats packets carry).
+- VERIFIED (two copies, Ranked Quick Match, Team Elimination, both players idle to the time limit, a draw):
+  - Call order at the end, on each copy:
+    1. XUserEstimateRankForRating(view 2, -1).
+    2. XSessionWriteStats (synchronous) of view 2 for its own player: 0x2000001D = -1, 0x2000001C, 0x20000013 and
+       0x2000000B-0x20000011.
+    3. The TrueSkill view 0xFFFF0000 (0x1000800A relative score, 0x1000800B) for every player in the session.
+       The other player's write is logged as "another player's stats, not kept".
+  - Each copy's rows reached the other right after its write, and both saved them.
+  - Copy 1's Ranked Match > Leaderboards > Team Elimination shows "Total Players : 2" (both players, plus its own
+    row at the bottom). The position reads "---" because the board needs 20 matches, as the screen says.
+  - The ranked leaderboard menu is Elimination, Team Elimination, Post Grab: views 1, 2, 3.
+  - Overlay with one unlock in achievements.txt: "1 of 50 unlocked, 10 of 1000 G", the unlocked one with its date,
+    and secret ones hidden until the checkbox is ticked.
+- Not verified: a real achievement unlock in game (it needs campaign progress), and anything across two PCs.
+
 ## Gotchas
 1. SteamStub: run the exe with SteamAppId/SteamGameId=45750 set (as Steam does); without it, it exits code 53
    after ~16 s. Code is decrypted ~1.2 s after start (used once to make analysis-only copies; never shipped).
@@ -491,6 +575,8 @@ Reports the player as signed in to LIVE (state 2, online XUID 0x0009..., XNET_GE
    offer to fix (admin + user consent).
 6. Computer-use: request access for "lp2dx9.exe" while the game runs. A grant for "Lost Planet 2" resolves to the
    Steam shortcut and the game windows stay masked. Window drags that end over desktop icons are refused.
+7. Programs that load xlive.dll (nettest, statstest) use the player's real profile folder unless
+   LP2NET_PROFILE_DIR is set. nettest's XSessionJoinRemote once wrote a met-list-only stats.dat there.
 
 ## Next
 See `ROADMAP.md`: phases 1-3 (hardening, voice chat, installer + CI) run in parallel, then stats and

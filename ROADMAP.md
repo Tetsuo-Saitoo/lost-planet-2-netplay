@@ -40,6 +40,8 @@ the others wait for the phase they depend on.
   leaderboards show you and the people you play with.
 - Achievements: LP2 on Steam has none, and Capcom's stub drops the game's unlocks. Keep them locally (names from
   the game's SPA) and show them in the overlay.
+- Done (branch `claude/wonderful-taussig-d6cb4d`, not merged yet): both, tested with two copies on one PC (MODLOG).
+  Still to test on two PCs: sharing over the internet and the Steam relay, and a real achievement unlock.
 
 ## Phase 5: internet without Steam (optional)
 - A small lobby server for session listing and UDP hole punching, for players who don't run Steam.

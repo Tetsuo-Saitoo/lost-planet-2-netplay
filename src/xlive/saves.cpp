@@ -56,6 +56,10 @@ std::wstring SavesRoot() {
 }
 
 std::wstring ProfileDir() {
+	wchar_t test[MAX_PATH];
+	if (GetEnvironmentVariableW(L"LP2NET_PROFILE_DIR", test, MAX_PATH)) {
+		return test;  // tests (statstest): keep their files out of the player's Documents
+	}
 	std::wstring base = SavesRoot();
 	return base.empty() ? GameDir() + L"LP2Netplay-profile" : base + Widen(Me().name);
 }

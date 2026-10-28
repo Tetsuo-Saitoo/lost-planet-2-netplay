@@ -34,10 +34,6 @@ FARPROC CapcomProc(WORD ordinal);
 	X(XLocatorServiceInitialize, 5236)             \
 	X(XLocatorServiceUnInitialize, 5237)           \
 	X(XLocatorCreateKey, 5238)                     \
-	X(XUserWriteAchievements, 5278)                \
-	X(XUserCreateAchievementEnumerator, 5280)      \
-	X(XUserCreateStatsEnumeratorByRank, 5284)      \
-	X(XUserCreateStatsEnumeratorByXuid, 5286)      \
 	X(XLivePBufferGetByteArray, 5294)              \
 	X(XLivePBufferSetByteArray, 5295)              \
 	X(XStringVerify, 5303)                         \

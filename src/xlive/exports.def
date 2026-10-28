@@ -131,8 +131,12 @@ EXPORTS
 	XStorageBuildServerPath             @5344  NONAME
 	XStorageDownloadToMemory            @5345  NONAME
 
-	; LIVE stats (xstats.cpp)
+	; LIVE stats (xstats.cpp) and achievements (achievements.cpp), kept on the player's PC
+	XUserWriteAchievements              @5278  NONAME
+	XUserCreateAchievementEnumerator    @5280  NONAME
 	XUserReadStats                      @5281  NONAME
+	XUserCreateStatsEnumeratorByRank    @5284  NONAME
+	XUserCreateStatsEnumeratorByXuid    @5286  NONAME
 	XUserEstimateRankForRating          @5346  NONAME
 
 	; Voice chat (xhv.cpp)

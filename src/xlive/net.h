@@ -9,6 +9,7 @@
 #include "gfwl.h"
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -61,6 +62,7 @@ enum class PacketType : uint8_t {
 	SessionQuery = 6,  // core: ask hosts to describe their session
 	SessionInfo = 7,   // core: session beacon / answer
 	Voice = 8,         // core: voice frames and talker announcements (xhv.cpp); older builds ignore it
+	Stats = 9,         // core: the sender's own stats rows (stats.h)
 };
 
 #pragma pack(push, 1)
@@ -167,6 +169,10 @@ std::string NetStatusLine();  // one-line summary for the overlay header
 HANDLE NewFakeHandle();
 HANDLE CreateEnumerator(DWORD itemSize, std::vector<std::vector<BYTE>> items);
 HANDLE CreateEmptyEnumerator();
+// An enumerator whose XEnumerate writes the buffer itself (results that hold pointers into it). Called once per
+// XEnumerate outside any lock; returns the error code (ERROR_NO_MORE_FILES when done) and sets *items.
+using EnumFill = std::function<DWORD(void* buffer, DWORD cb, DWORD* items)>;
+HANDLE CreateFillEnumerator(EnumFill fill);
 
 // user contexts (xuser.cpp)
 DWORD GetUserContext(DWORD id, DWORD def);

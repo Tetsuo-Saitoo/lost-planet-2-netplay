@@ -5,6 +5,7 @@
 #include "util.h"
 
 #include <map>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -18,6 +19,7 @@ struct Enumerator {
 	DWORD itemSize;
 	std::vector<std::vector<BYTE>> items;
 	size_t next = 0;
+	std::shared_ptr<EnumFill> fill;  // instead of items
 };
 std::mutex g_mutex;
 std::map<HANDLE, Enumerator> g_enums;
@@ -39,6 +41,13 @@ HANDLE CreateEnumerator(DWORD itemSize, std::vector<std::vector<BYTE>> items) {
 HANDLE CreateEmptyEnumerator() {
 	return CreateEnumerator(1, {});
 }
+
+HANDLE CreateFillEnumerator(EnumFill fill) {
+	HANDLE h = NewFakeHandle();
+	std::lock_guard lock(g_mutex);
+	g_enums[h] = Enumerator{0, {}, 0, std::make_shared<EnumFill>(std::move(fill))};
+	return h;
+}
 }  // namespace lp2net
 
 using namespace lp2net;
@@ -46,10 +55,14 @@ using namespace lp2net;
 extern "C" DWORD WINAPI XEnumerate(HANDLE hEnum, void* pvBuffer, DWORD cbBuffer, DWORD* pcItemsReturned,
                                    XOVERLAPPED* pOverlapped) {
 	DWORD count = 0;
+	std::shared_ptr<EnumFill> fill;
 	{
 		std::lock_guard lock(g_mutex);
 		auto it = g_enums.find(hEnum);
-		if (it != g_enums.end()) {
+		if (it != g_enums.end() && it->second.fill) {
+			fill = it->second.fill;
+		}
+		else if (it != g_enums.end()) {
 			Enumerator& e = it->second;
 			BYTE* out = (BYTE*)pvBuffer;
 			while (e.next < e.items.size() && (count + 1) * e.itemSize <= cbBuffer) {
@@ -59,10 +72,13 @@ extern "C" DWORD WINAPI XEnumerate(HANDLE hEnum, void* pvBuffer, DWORD cbBuffer,
 			}
 		}
 	}
+	DWORD err = count ? ERROR_SUCCESS : ERROR_NO_MORE_FILES;
+	if (fill) {
+		err = (*fill)(pvBuffer, cbBuffer, &count);
+	}
 	if (pcItemsReturned) {
 		*pcItemsReturned = count;
 	}
-	DWORD err = count ? ERROR_SUCCESS : ERROR_NO_MORE_FILES;
 	return CompleteOverlapped(pOverlapped, err, count);
 }
 

@@ -7,6 +7,7 @@
 #include "matchmaking.h"
 #include "overlay.h"
 #include "presence.h"
+#include "stats.h"
 #include "steam.h"
 #include "upnp.h"
 #include "util.h"
@@ -523,9 +524,15 @@ void HandleCore(const sockaddr_in& from, const PacketHeader& h, const BYTE* body
 			    relaySteamId ? std::to_string(relaySteamId).c_str() : AddrToString(from).c_str(),
 			    XnAddrToString(p.xnaddr).c_str(), p.steamId ? " [Steam]" : "");
 			OverlayToast(p.name + (relaySteamId ? " is reachable through Steam" : " is reachable"));
+			for (const auto& s : StatsPackets()) {
+				SendCorePeer(p, PacketType::Stats, s.data(), s.size());
+			}
 		}
 		break;
 	}
+	case PacketType::Stats:
+		StatsReceive(h.instanceId, body, cb);
+		break;
 	case PacketType::QosProbe: {
 		if (cb < (int)sizeof(QosBody)) {
 			return;
@@ -1352,6 +1359,22 @@ void SessionFromSteamLobby(const LobbyEntry& lobby, bool joinNow) {
 
 ULONGLONG SessionsStamp() {
 	return g_lobbyStamp;
+}
+
+void SendStatsToPeers(const std::vector<std::vector<BYTE>>& packets) {
+	if (packets.empty()) {
+		return;
+	}
+	std::lock_guard lock(g_mutex);
+	ULONGLONG now = GetTickCount64();
+	for (const auto& [id, p] : g_peers) {
+		if (p.name.empty() || now - p.lastHeard > kPeerGoneMs) {
+			continue;
+		}
+		for (const auto& s : packets) {
+			SendCorePeer(p, PacketType::Stats, s.data(), s.size());
+		}
+	}
 }
 
 std::vector<PeerView> ListPeers() {
