@@ -3,7 +3,7 @@
 Newest first. Each version's section becomes the notes of its GitHub release: for a tag `v0.2.0-test.1`, CI copies
 the section headed `## 0.2.0-test.1`, and a tag without a section fails the build. Add the section before tagging.
 
-## 0.2.0-test.1 (2026-10-28)
+## 0.2.0-test.2 (2026-10-28)
 
 Test build: voice chat and stats on top of 0.2.0.
 
