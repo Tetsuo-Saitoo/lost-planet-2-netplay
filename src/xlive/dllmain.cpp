@@ -38,6 +38,7 @@ bool GameLogTryInstall();
 void CarrySaveToGamertag();
 void WatchdogStart();
 void WatchdogStop();
+void CrashLogStart();
 
 FARPROC CapcomProc(WORD ordinal) {
 	EnsureInit();
@@ -73,6 +74,7 @@ extern "C" HRESULT WINAPI XLiveInitializeEx(XLIVE_INITIALIZE_INFO* pInfo, DWORD 
 	OverlayInit(pInfo);
 	GameLogTryInstall();
 	if (pInfo && pInfo->pD3D) {
+		CrashLogStart();
 		WatchdogStart();
 	}
 	PostNotification(XN_SYS_SIGNINCHANGED, 1);
