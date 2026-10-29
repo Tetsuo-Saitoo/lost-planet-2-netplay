@@ -38,7 +38,7 @@ jobs:
         shell: pwsh
         run: tools\make_package.ps1
 
-      - name: Check the tag matches project(VERSION)
+      - name: Check the tag matches project(VERSION) and has a CHANGELOG.md section
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         env:
@@ -47,6 +47,10 @@ jobs:
         run: |
           if ($env:TAG -notmatch "^v$([regex]::Escape($env:VERSION))(-.+)?$") {
             throw "Tag $env:TAG does not match the version in CMakeLists.txt ($env:VERSION)"
+          }
+          $ver = $env:TAG.Substring(1)
+          if (-not (Select-String -Path CHANGELOG.md -Pattern "^## $([regex]::Escape($ver))( |$)" -Quiet)) {
+            throw "CHANGELOG.md has no '## $ver' section: its release notes come from there"
           }
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -65,6 +69,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: LP2Netplay-${{ needs.build.outputs.version }}
@@ -79,7 +87,10 @@ jobs:
           zip="dist/LP2Netplay-$VERSION.zip"
           tgz="dist/LP2Netplay-$VERSION-linux.tar.gz"
           exe="dist/LP2Netplay-$VERSION/LP2NetSetup.exe"
-          cat > notes.md <<EOF
+          # what changed: this version's CHANGELOG.md section, without its heading
+          awk -v v="${TAG#v}" '{sub(/\r$/, "")} /^## /{p = ($2 == v); next} p' CHANGELOG.md > notes.md
+          printf '\n---\n\n' >> notes.md
+          cat >> notes.md <<EOF
           **Windows:** download **LP2NetSetup.exe**, quit Lost Planet 2 and double-click it, then click Install.
           Windows may say "Windows protected your PC" because the file is not signed: click *More info* > *Run anyway*.
           The zip has the same installer, HOW TO TEST.txt and a script installer (\`manual\`) in case the exe is blocked.
